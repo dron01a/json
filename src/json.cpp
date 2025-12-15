@@ -15,15 +15,19 @@ json::file_reader::~file_reader(){
 }
 
 char json::file_reader::get_next_char(){
-	last_char = file.get();
+	cur_char = file.get();
 	if (file.eof()) {
-		last_char =  '\0';
+		cur_char =  '\0';
 	}
-	return last_char;
+	return cur_char;
 }
 
 char & json::file_reader::get_last_char(){
-	return last_char;
+	return cur_char;
+}
+
+void json::file_reader::step_back(int n){
+	file.seekg(-n, std::ios::cur);
 }
 
 bool json::file_reader::ready(){
@@ -55,6 +59,12 @@ char & json::string_reader::get_last_char(){
 	return str[str.size() - 1];
 }
 
+void json::string_reader::step_back(int n){
+	if (position - n >= 0) {
+		position -= n;
+	}
+}
+
 bool json::string_reader::ready(){
 	return !str.empty() && position < str.size();
 }
@@ -69,49 +79,57 @@ json::tokenizer::~tokenizer(){
 	}
 }
 
-json::token & json::tokenizer::get_nex_token(){
-	char ch = reader->get_next_char();
-	while (ch == ' ' || ch == '\t') {
-		ch = reader->get_next_char();
+json::token & json::tokenizer::get_next_token(){
+	char cur_char = reader->get_next_char();
+	while (cur_char == ' ' || cur_char == '\t') {
+		cur_char = reader->get_next_char();
 	}
-	switch (ch){
+	switch (cur_char){
 	case '{':
-		cur_token = { std::string(1, ch), token_type::_open_curly_brt }; 
+		cur_token = create_token( token_type::_open_curly_brt );
 		break;
 	case '}':
-		cur_token = { std::string(1, ch), token_type::_close_curly_brt };
+		cur_token = create_token( token_type::_close_curly_brt );
 		break;
 	case '[':
-		cur_token = { std::string(1, ch), token_type::_open_square_brt };
+		cur_token = create_token(token_type::_open_square_brt);
 		break;
 	case ']':
-		cur_token = { std::string(1, ch), token_type::_close_square_brt };
+		cur_token = create_token(token_type::_close_square_brt);
 		break;
 	case '\"':
-		cur_token.data = string_parse();
-		cur_token._type = token_type::_string;
+		cur_token = create_token(string_parse(), token_type::_string);
 		break;
 	case ':':
-		cur_token = { std::string(1, ch), token_type::_colon };
+		cur_token = create_token(token_type::_colon);
 		break;
 	case ',':
-		cur_token = { std::string(1, ch), token_type::_comma };
-		break;
-	case '\t':
-	case ' ':
-		cur_token = get_nex_token();
+		cur_token = create_token(token_type::_comma);
 		break;
 	case '-': case '1':case '2': case '3':case '4': case '5':
 	case '6': case '7': case '8': case '9':
-		cur_token.data = number_parse();
-		cur_token._type = token_type::_number;
+		cur_token = create_token(number_parse(), token_type::_number);
 		break;
 	case '\0':
-		cur_token = { std::string(1, ch), token_type::_end };
+		cur_token = create_token(token_type::_end);
+		break;
+	case 't':
+		if (literal_parse("true")) {
+			cur_token = create_token(token_type::_true);
+		}
+		break;
+	case 'f':
+		if (literal_parse("false")) {
+			cur_token = create_token(token_type::_false);
+		}
+		break;
+	case 'n':
+		if (literal_parse("null")) {
+			cur_token = create_token(token_type::_null);
+		}
 		break;
 	default:
 		throw error_type::_error_token;
-		break;
 	}
 	return cur_token;
 }
@@ -120,12 +138,24 @@ json::token & json::tokenizer::get_last_token(){
 	return cur_token;
 }
 
+json::token json::tokenizer::create_token(token_type _t){
+	return{ "", _t };
+}
+
+json::token json::tokenizer::create_token(std::string str, token_type _t){
+	return { str, _t };
+}
+
+json::token json::tokenizer::create_token(char ch, token_type _t){
+	return { std::string(1, ch), _t };
+}
+
 std::string json::tokenizer::string_parse(){
 	std::string result;
-	char ch = reader->get_next_char();
-	while (ch != '\"') {
-		result += ch;
-		ch = reader->get_next_char();
+	char cur_char = reader->get_next_char();
+	while (cur_char != '\"') {
+		result += cur_char;
+		cur_char = reader->get_next_char();
 	}
 	return result;
 }
@@ -154,7 +184,7 @@ std::string json::tokenizer::number_parse(){
 			result += cur_char;
 			cur_char = reader->get_next_char();
 			if (!std::isdigit(cur_char)) {
-				throw  error_type::_invalid_number_format;
+				throw error_type::_invalid_number_format;
 			}
 			result += cur_char;
 			cur_char = reader->get_next_char();
@@ -162,10 +192,22 @@ std::string json::tokenizer::number_parse(){
 		}
 	}
 	try {
+		reader->step_back(1);
 		std::stod(result.c_str());
 	}
 	catch (std::exception & e) {
 		throw error_type::_invalid_number;
 	}
 	return result;
+}
+
+bool json::tokenizer::literal_parse(std::string _literal){
+	char cur_char = reader->get_next_char();
+	for (size_t i = 1; i < _literal.size(); ++i) {
+		if (cur_char != _literal[i] || cur_char == '\0') {
+			throw error_type::_literal_error;
+		}
+		cur_char = reader->get_next_char();
+	}
+	return true;
 }

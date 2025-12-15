@@ -19,6 +19,7 @@ namespace json {
 		_error_token = 0	, 
 		_invalid_number, 
 		_invalid_number_format,
+		_literal_error,
 	};
 
 	// типы токенов
@@ -37,7 +38,7 @@ namespace json {
 		_unknown, // неизвестный символ
 		_null, // ничего, 
 		_true, 
-		_fasle, 
+		_false, 
 		_key,
 		_end // конец данных
 	};
@@ -91,8 +92,9 @@ namespace json {
 	public:
 		virtual ~i_reader() = default;
 		virtual char get_next_char() = 0;
+		virtual char & get_last_char() = 0;
 		virtual bool ready() = 0;
-		virtual char & get_last_char() = 0; 
+		virtual void step_back(int n) = 0;
 	};
 
 	// чтение из файла 
@@ -112,11 +114,14 @@ namespace json {
 		// возвращает предыдущий символ
 		char & get_last_char();
 
+		// делает шаг назад
+		void step_back(int n);
+
 		// проверка на готовность к работе
 		bool ready();
 	private:
 		std::ifstream file;
-		char last_char;
+		char cur_char;
 	};
 
 	// чтение из файла 
@@ -133,8 +138,11 @@ namespace json {
 		// возвращает предыдущий символ
 		char get_next_char();
 
-		// возвращает предыдущий символ
+		// возвращает текущий символ
 		char & get_last_char();
+
+		// делает шаг назад
+		void step_back(int n);
 
 		// проверка на готовность к работе
 		bool ready();
@@ -153,7 +161,7 @@ namespace json {
 		~tokenizer();
 
 		// возвращает следущий токен 
-		token & get_nex_token();
+		token & get_next_token();
 
 		// возвращает текущий токен
 		token & get_last_token();
@@ -162,12 +170,16 @@ namespace json {
 		// создает токен
 		token create_token(token_type _t);
 		token create_token(std::string str, token_type _t);
+		token create_token(char ch, token_type _t);
 
 		// получает значения между кавычками
 		std::string string_parse();
 
 		// получает число
 		std::string number_parse();
+
+		// парсит литералы
+		bool literal_parse(std::string _literal);
 
 		// возвращает тип символа
 		token_type get_char_type(char & _char);
