@@ -11,12 +11,12 @@ namespace json {
 
 	class json_value;
 
-	using json_three = std::map<std::string, json_value>;
+	using json_object = std::map<std::string, json_value>;
 	using json_array = std::vector<json_value>;
 
 	// типы ошибок
 	enum class error_type {
-		_error_token = 0	, 
+		_error_token = 0, 
 		_invalid_number, 
 		_invalid_number_format,
 		_literal_error,
@@ -65,24 +65,62 @@ namespace json {
 		json_value();
 		json_value(bool data);
 		json_value(double data);
+		json_value(const std::string & string);
+		json_value(const char * string);
 		json_value(json_array data);
-		json_value(json_three data);
+		json_value(json_object data);
 		json_value(const json_value & val);
 		json_value(json_value && val);
+
+		json_value & operator=(json_value & jval);
+		json_value & operator=(json_value && jval);
 
 		// деструктор класса
 		~json_value();
 
+		// для получения булевого значения 
+		bool & as_bool();
+		void as_bool(bool & val);
+
+		// для получения числового значения
+		double & as_num();
+		void as_num(double num);
+
+		// для получения строки
+		std::string & as_string();
+		void as_string(const std::string & string);
+		void as_string(const char * string);
+
+		// для получения массива
+		json_array * as_array();
+		void as_array(json_array array);
+
+		// для получения объекта
+		json_object * as_object();
+		void as_object(json_object object);
+
+		// возвращает тип
+		value_type type() const;
+
 	private:
 
-		value_type type; // тип
+		// очистка данных в зависимости от типа
+		void clear_data();
+
+		// перемещение данных 
+		void copy_data(const json_value & val);
+
+		// копирование данных
+		void move_data(json_value && val);
+
+		value_type _type = value_type::_null; // тип
 
 		// данные
 		union {
 			bool bool_data; 
 			double num_data;
-			std::string * str_data;
-			json_three * object;
+			std::string  * str_data;
+			json_object * object_data;
 			json_array * array_data;
 		};
 	};
@@ -188,13 +226,36 @@ namespace json {
 		i_reader * reader; // для чтения данных
 	};
 
+	// класс записи
 	class i_writer {
 
 	};
 
 	// класс парсера
 	class json_parser {
+	public:
+		// конструктор класса
+		json_parser();
 
+		// получение значения по ключу
+		json_value get(const std::string & key);
+		json_value get(const char * key);
+
+		// проверка наличия ключа
+		bool check(const std::string & key);
+		bool check(const char * key);
+
+		// загрузка из файла
+		void load_from_file(const std::string & key);
+		void load_from_file(const char * key);
+
+		// загрузка из строки
+		void load_from_string(const std::string & key);
+		void load_from_string(const char * key);
+
+	private:
+		
+		tokenizer * tokenizer; // для получения новых токенов
 	};
 
 };
