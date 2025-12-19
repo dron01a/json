@@ -20,6 +20,9 @@ namespace json {
 		_invalid_number, 
 		_invalid_number_format,
 		_literal_error,
+		_invalid_value,
+		_invalid_object,
+		_invalid_array_value
 	};
 
 	// типы токенов
@@ -101,6 +104,7 @@ namespace json {
 
 		// возвращает тип
 		value_type type() const;
+		void type(value_type _t);
 
 	private:
 
@@ -204,6 +208,8 @@ namespace json {
 		// возвращает текущий токен
 		token & get_last_token();
 	private:
+		// пропускает пробелы
+		void skip_space();
 
 		// создает токен
 		token create_token(token_type _t);
@@ -237,25 +243,40 @@ namespace json {
 		// конструктор класса
 		json_parser();
 
-		// получение значения по ключу
-		json_value get(const std::string & key);
-		json_value get(const char * key);
+		// деструктор класса
+		~json_parser();
 
-		// проверка наличия ключа
-		bool check(const std::string & key);
-		bool check(const char * key);
+		//// получение значения по ключу
+		//json_value get(const std::string & key);
+		//json_value get(const char * key);
+
+		//// проверка наличия ключа
+		//bool check(const std::string & key);
+		//bool check(const char * key);
 
 		// загрузка из файла
-		void load_from_file(const std::string & key);
-		void load_from_file(const char * key);
+		json_value load_from_file(const std::string & file_name);
+		json_value load_from_file(const char * file_name);
 
 		// загрузка из строки
-		void load_from_string(const std::string & key);
-		void load_from_string(const char * key);
+		json_value load_from_string(const std::string & json_string);
+		json_value load_from_string(const char * json_string);
 
 	private:
-		
-		tokenizer * tokenizer; // для получения новых токенов
+
+		// запускает парсинг
+		json_value parse();
+
+		// парсинг json-начения
+		json_value parse_json_value(); 
+
+		// парсинг массива 
+		json_value parse_array();
+
+		// парсинг объекта
+		json_value parse_object();
+
+		tokenizer * _tokenizer; // для получения новых токенов
 	};
 
 };

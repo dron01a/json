@@ -7,11 +7,14 @@
 using namespace json;
 
 int main() {
-
-	json_value jsv(false);
-	jsv.as_num(10.12);
-	jsv.as_array({ 2.123, 5.123123 });
-	jsv.as_num(10.2);
-	jsv.as_object({ { "a", 12.2 }, { "b", 1.2 } });
+	std::string s = "{  \"a\" : -123.65e+6 , \"obj\" : { \"bb\" : { \"c\" : \"str\", \"d\" : false } } }";
+	json_parser p;
+	json_value v;
+	try {
+		v = p.load_from_file(".\\test.json");
+	}
+	catch (error_type & err) {
+		std::cout << (int)err << std::endl;
+	}
 	return 0;
 }

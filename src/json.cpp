@@ -5,7 +5,7 @@ json::file_reader::file_reader(const std::string & file_name){
 }
 
 json::file_reader::file_reader(const char * file_name){
-	file.open(file_name, std::ios::binary);
+	file.open(file_name, std::ios::in | std::ios::binary);
 }
 
 json::file_reader::~file_reader(){
@@ -17,7 +17,7 @@ json::file_reader::~file_reader(){
 char json::file_reader::get_next_char(){
 	cur_char = file.get();
 	if (file.eof()) {
-		cur_char =  '\0';
+		cur_char = '\0';
 	}
 	return cur_char;
 }
@@ -80,10 +80,8 @@ json::tokenizer::~tokenizer(){
 }
 
 json::token & json::tokenizer::get_next_token(){
-	char cur_char = reader->get_next_char();
-	while (cur_char == ' ' || cur_char == '\t') {
-		cur_char = reader->get_next_char();
-	}
+	skip_space();
+	char cur_char = reader->get_last_char();
 	switch (cur_char){
 	case '{':
 		cur_token = create_token( token_type::_open_curly_brt );
@@ -136,6 +134,13 @@ json::token & json::tokenizer::get_next_token(){
 
 json::token & json::tokenizer::get_last_token(){
 	return cur_token;
+}
+
+void json::tokenizer::skip_space(){
+	char cur_char = reader->get_next_char();
+	while (cur_char == ' ' || cur_char == '\t' || cur_char == '\n' || cur_char == '\r') {
+		cur_char = reader->get_next_char();
+	}
 }
 
 json::token json::tokenizer::create_token(token_type _t){
@@ -326,6 +331,10 @@ json::value_type json::json_value::type() const{
 	return _type;
 }
 
+void json::json_value::type(value_type _t){
+	_type = _t;
+}
+
 void json::json_value::clear_data(){
 	switch (_type){
 	case json::value_type::_string:
@@ -390,3 +399,115 @@ void json::json_value::move_data(json_value && val){
 	}
 }
 
+json::json_parser::json_parser() : _tokenizer(nullptr) {}
+
+json::json_parser::~json_parser(){
+	if (_tokenizer) {
+		delete _tokenizer;
+	}
+}
+
+json::json_value json::json_parser::load_from_file(const std::string & file_name){
+	return load_from_string(file_name.c_str());
+}
+
+json::json_value json::json_parser::load_from_file(const char * file_name){
+	if (_tokenizer) {
+		delete _tokenizer;
+	}
+	_tokenizer = new tokenizer(new file_reader(file_name));
+	json_value result = parse();
+	return result;
+}
+
+json::json_value json::json_parser::load_from_string(const std::string & json_string){
+	return load_from_string(json_string.c_str());
+}
+
+json::json_value json::json_parser::load_from_string(const char * json_string){
+	if (_tokenizer) {
+		delete _tokenizer;
+	}
+	_tokenizer = new tokenizer(new string_reader(json_string));
+	json_value result = parse();
+	return result;
+}
+
+json::json_value json::json_parser::parse(){
+	json_value _result;
+	token cur_token = _tokenizer->get_next_token();
+	switch (cur_token._type){
+	case token_type::_open_curly_brt:
+		_result = parse_object();
+		break;
+	case token_type::_open_square_brt:
+		_result = parse_array();
+		break;
+	}
+	return _result;
+}
+
+json::json_value json::json_parser::parse_json_value(){
+	token cur_token = _tokenizer->get_last_token();
+	switch (cur_token._type) {
+	case token_type::_open_curly_brt:
+		return parse_object();
+	case token_type::_open_square_brt:
+		return parse_array();
+	case token_type::_null:
+		return json_value();
+	case token_type::_number:
+		return json_value(stod(cur_token.data));
+	case token_type::_string:
+		return json_value(cur_token.data);
+	case token_type::_true:
+		return json_value(true);
+	case token_type::_false:
+		return json_value(false);
+	}
+	throw error_type::_invalid_value;
+}
+
+json::json_value json::json_parser::parse_array(){
+	json_value result; 
+	result.as_array({});
+	bool _parse = true;
+	_tokenizer->get_next_token();
+	while (_tokenizer->get_last_token()._type != token_type::_close_square_brt) {
+		result.as_array()->push_back(parse_json_value());
+		_tokenizer->get_next_token();
+		if (_tokenizer->get_last_token()._type == token_type::_comma) {
+			_tokenizer->get_next_token();
+			continue;
+		}
+	}
+	if (_tokenizer->get_last_token()._type != token_type::_close_square_brt) {
+		throw error_type::_invalid_array_value;
+	}
+	return result;
+}
+
+json::json_value json::json_parser::parse_object(){
+	json_value result;
+	result.as_object({});
+	_tokenizer->get_next_token();
+	while (_tokenizer->get_last_token()._type != token_type::_close_curly_brt) {
+		if (_tokenizer->get_last_token()._type == token_type::_string) {
+			std::string key = _tokenizer->get_last_token().data;
+			if (_tokenizer->get_next_token()._type != token_type::_colon) {
+				throw error_type::_invalid_object;
+			}
+			_tokenizer->get_next_token();
+			json_value val = parse_json_value();
+			result.as_object()->insert({std::move(key), std::move(val)});
+			_tokenizer->get_next_token();
+			continue;
+		}
+		if (_tokenizer->get_last_token()._type == token_type::_comma) {
+			_tokenizer->get_next_token();
+			continue;
+		}
+		throw error_type::_error_token;
+	}
+	return result;
+}

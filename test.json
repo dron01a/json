@@ -1,0 +1,13 @@
+{
+  "digit": -123.65e+6,
+  "obj": {
+    "sub obj 1": {
+      "string": "str 1",
+      "bool": false
+    }, 
+    "sub obj 2": {
+      "string": "str 2",
+      "bool": false
+    }
+  } 
+}
