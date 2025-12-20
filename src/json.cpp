@@ -82,52 +82,53 @@ json::tokenizer::~tokenizer(){
 json::token & json::tokenizer::get_next_token(){
 	skip_space();
 	char cur_char = reader->get_last_char();
+	col++;
 	switch (cur_char){
 	case '{':
-		cur_token = create_token( token_type::_open_curly_brt );
+		cur_token = token(token_type::_open_curly_brt);
 		break;
 	case '}':
-		cur_token = create_token( token_type::_close_curly_brt );
+		cur_token = token( token_type::_close_curly_brt );
 		break;
 	case '[':
-		cur_token = create_token(token_type::_open_square_brt);
+		cur_token = token(token_type::_open_square_brt);
 		break;
 	case ']':
-		cur_token = create_token(token_type::_close_square_brt);
+		cur_token = token(token_type::_close_square_brt);
 		break;
 	case '\"':
-		cur_token = create_token(string_parse(), token_type::_string);
+		cur_token = token(string_parse(), token_type::_string);
 		break;
 	case ':':
-		cur_token = create_token(token_type::_colon);
+		cur_token = token(token_type::_colon);
 		break;
 	case ',':
-		cur_token = create_token(token_type::_comma);
+		cur_token = token(token_type::_comma);
 		break;
 	case '-': case '1':case '2': case '3':case '4': case '5':
 	case '6': case '7': case '8': case '9':
-		cur_token = create_token(number_parse(), token_type::_number);
+		cur_token = token(number_parse());
 		break;
 	case '\0':
-		cur_token = create_token(token_type::_end);
+		cur_token = token(token_type::_end);
 		break;
 	case 't':
 		if (literal_parse("true")) {
-			cur_token = create_token(token_type::_true);
+			cur_token = token(token_type::_true);
 		}
 		break;
 	case 'f':
 		if (literal_parse("false")) {
-			cur_token = create_token(token_type::_false);
+			cur_token = token(token_type::_false);
 		}
 		break;
 	case 'n':
 		if (literal_parse("null")) {
-			cur_token = create_token(token_type::_null);
+			cur_token = token(token_type::_null);
 		}
 		break;
 	default:
-		throw error_type::_error_token;
+		throw error(col, str, error_type::_error_token);
 	}
 	return cur_token;
 }
@@ -139,20 +140,19 @@ json::token & json::tokenizer::get_last_token(){
 void json::tokenizer::skip_space(){
 	char cur_char = reader->get_next_char();
 	while (cur_char == ' ' || cur_char == '\t' || cur_char == '\n' || cur_char == '\r') {
+		switch (cur_char) {
+		case ' ':
+		case '\t':
+			col++;
+			break;
+		case '\n':
+		case '\r':
+			col = 0;
+			str++;
+			break;
+		}
 		cur_char = reader->get_next_char();
 	}
-}
-
-json::token json::tokenizer::create_token(token_type _t){
-	return{ "", _t };
-}
-
-json::token json::tokenizer::create_token(std::string str, token_type _t){
-	return { str, _t };
-}
-
-json::token json::tokenizer::create_token(char ch, token_type _t){
-	return { std::string(1, ch), _t };
 }
 
 std::string json::tokenizer::string_parse(){
@@ -162,10 +162,11 @@ std::string json::tokenizer::string_parse(){
 		result += cur_char;
 		cur_char = reader->get_next_char();
 	}
+	col += result.size();
 	return result;
 }
 
-std::string json::tokenizer::number_parse(){
+double json::tokenizer::number_parse(){
 	std::string result;
 	if (reader->get_last_char() == '-') {
 		result += reader->get_last_char();
@@ -189,7 +190,7 @@ std::string json::tokenizer::number_parse(){
 			result += cur_char;
 			cur_char = reader->get_next_char();
 			if (!std::isdigit(cur_char)) {
-				throw error_type::_invalid_number_format;
+				throw error(col, str, error_type::_invalid_number_format);
 			}
 			result += cur_char;
 			cur_char = reader->get_next_char();
@@ -198,22 +199,23 @@ std::string json::tokenizer::number_parse(){
 	}
 	try {
 		reader->step_back(1);
-		std::stod(result.c_str());
+		col += result.size();
+		return std::stod(result.c_str());
 	}
 	catch (std::exception & e) {
-		throw error_type::_invalid_number;
+		throw error(col, str, error_type::_invalid_number);
 	}
-	return result;
 }
 
 bool json::tokenizer::literal_parse(std::string _literal){
 	char cur_char = reader->get_next_char();
 	for (size_t i = 1; i < _literal.size(); ++i) {
 		if (cur_char != _literal[i] || cur_char == '\0') {
-			throw error_type::_literal_error;
+			throw error(col, str, error_type::_literal_error);
 		}
 		cur_char = reader->get_next_char();
 	}
+	col += _literal.size();
 	return true;
 }
 
@@ -433,16 +435,25 @@ json::json_value json::json_parser::load_from_string(const char * json_string){
 	return result;
 }
 
+json::error json::json_parser::get_last_error(){
+	return last_error;
+}
+
 json::json_value json::json_parser::parse(){
 	json_value _result;
-	token cur_token = _tokenizer->get_next_token();
-	switch (cur_token._type){
-	case token_type::_open_curly_brt:
-		_result = parse_object();
-		break;
-	case token_type::_open_square_brt:
-		_result = parse_array();
-		break;
+	try {
+		token cur_token = _tokenizer->get_next_token();
+		switch (cur_token._type) {
+		case token_type::_open_curly_brt:
+			_result = parse_object();
+			break;
+		case token_type::_open_square_brt:
+			_result = parse_array();
+			break;
+		}
+	}
+	catch (error & e) {
+		last_error = e;
 	}
 	return _result;
 }
@@ -457,15 +468,15 @@ json::json_value json::json_parser::parse_json_value(){
 	case token_type::_null:
 		return json_value();
 	case token_type::_number:
-		return json_value(stod(cur_token.data));
+		return json_value(cur_token.num_data);
 	case token_type::_string:
-		return json_value(cur_token.data);
+		return json_value(cur_token.string_data);
 	case token_type::_true:
 		return json_value(true);
 	case token_type::_false:
 		return json_value(false);
 	}
-	throw error_type::_invalid_value;
+	throw error(_tokenizer->col, _tokenizer->str, error_type::_invalid_value);
 }
 
 json::json_value json::json_parser::parse_array(){
@@ -473,16 +484,22 @@ json::json_value json::json_parser::parse_array(){
 	result.as_array({});
 	bool _parse = true;
 	_tokenizer->get_next_token();
-	while (_tokenizer->get_last_token()._type != token_type::_close_square_brt) {
+	while (_parse && _tokenizer->get_last_token()._type != token_type::_close_square_brt) {
 		result.as_array()->push_back(parse_json_value());
 		_tokenizer->get_next_token();
-		if (_tokenizer->get_last_token()._type == token_type::_comma) {
+		switch (_tokenizer->get_last_token()._type){
+		case token_type::_comma:
 			_tokenizer->get_next_token();
-			continue;
+			break;
+		case token_type::_close_square_brt:
+			_parse = false;
+			break;
+		default:
+			throw error(_tokenizer->col, _tokenizer->str, error_type::_invalid_array_value);
 		}
 	}
-	if (_tokenizer->get_last_token()._type != token_type::_close_square_brt) {
-		throw error_type::_invalid_array_value;
+	if (!_parse && _tokenizer->get_last_token()._type != token_type::_close_square_brt) {
+		throw error(_tokenizer->col, _tokenizer->str, error_type::_invalid_array_value);
 	}
 	return result;
 }
@@ -493,9 +510,9 @@ json::json_value json::json_parser::parse_object(){
 	_tokenizer->get_next_token();
 	while (_tokenizer->get_last_token()._type != token_type::_close_curly_brt) {
 		if (_tokenizer->get_last_token()._type == token_type::_string) {
-			std::string key = _tokenizer->get_last_token().data;
+			std::string key = _tokenizer->get_last_token().string_data;
 			if (_tokenizer->get_next_token()._type != token_type::_colon) {
-				throw error_type::_invalid_object;
+				throw error(_tokenizer->col, _tokenizer->str, error_type::_invalid_object);
 			}
 			_tokenizer->get_next_token();
 			json_value val = parse_json_value();
@@ -507,7 +524,7 @@ json::json_value json::json_parser::parse_object(){
 			_tokenizer->get_next_token();
 			continue;
 		}
-		throw error_type::_error_token;
+		throw error(_tokenizer->col, _tokenizer->str, error_type::_error_token);
 	}
 	return result;
 }

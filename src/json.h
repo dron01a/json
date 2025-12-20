@@ -16,7 +16,8 @@ namespace json {
 
 	// типы ошибок
 	enum class error_type {
-		_error_token = 0, 
+		_none = 0, 
+		_error_token, 
 		_invalid_number, 
 		_invalid_number_format,
 		_literal_error,
@@ -57,8 +58,53 @@ namespace json {
 
 	// токен
 	struct token {
-		std::string data; // данные
+		token() { };
+		token(const std::string & _s, token_type _t) : string_data(_s), _type(_t) {};
+		token(const char * _s, token_type _t) : string_data(_s), _type(_t) {};
+		token(double _d) : num_data(_d), _type(token_type::_number) {};
+		token(int _i) : num_data(_i), _type(token_type::_number) {};
+		token(token_type _t) : _type(_t) {};
+		token(const token & t ) {
+			switch (t._type){
+			case token_type::_number:
+				num_data = t.num_data;
+				break;
+			case token_type::_string:
+				num_data = t.num_data;
+				break;
+			default:
+				_type = t._type;
+				break;
+			}
+		}
+		token & operator=(const token & t) {
+			switch (t._type) {
+			case token_type::_number:
+				num_data = t.num_data;
+				break;
+			case token_type::_string:
+				num_data = t.num_data;
+				break;
+			default:
+				_type = t._type;
+				break;
+			}
+			return *this;
+		}
+		~token() {  };
+		union { // данные
+			std::string string_data;
+			double num_data;
+		}; 
 		token_type _type; // тип 
+	};
+
+	// структура ошибки
+	struct error {
+		error() {}
+		error(size_t _c, size_t _s, error_type _e) : col(_c), str(_s), type(_e) {}
+		size_t col = 0, str = 0;
+		error_type type = error_type::_none;
 	};
 
 	// класс занчения 
@@ -207,29 +253,25 @@ namespace json {
 
 		// возвращает текущий токен
 		token & get_last_token();
+
+		size_t col = 0;
+		size_t str = 0;
 	private:
 		// пропускает пробелы
 		void skip_space();
-
-		// создает токен
-		token create_token(token_type _t);
-		token create_token(std::string str, token_type _t);
-		token create_token(char ch, token_type _t);
 
 		// получает значения между кавычками
 		std::string string_parse();
 
 		// получает число
-		std::string number_parse();
+		double number_parse();
 
 		// парсит литералы
 		bool literal_parse(std::string _literal);
 
-		// возвращает тип символа
-		token_type get_char_type(char & _char);
-
 		token cur_token; // текущий токен
 		i_reader * reader; // для чтения данных
+
 	};
 
 	// класс записи
@@ -262,6 +304,9 @@ namespace json {
 		json_value load_from_string(const std::string & json_string);
 		json_value load_from_string(const char * json_string);
 
+		// возвращает последнюю полученную ошибку
+		error get_last_error();
+
 	private:
 
 		// запускает парсинг
@@ -277,6 +322,8 @@ namespace json {
 		json_value parse_object();
 
 		tokenizer * _tokenizer; // для получения новых токенов
+
+		error last_error; // последняя полученная ошибка
 	};
 
 };
