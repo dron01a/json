@@ -17,6 +17,8 @@ namespace json {
 	// типы ошибок
 	enum class error_type {
 		_none = 0, 
+		_file_not_found,
+		_string_is_empty,
 		_error_token, 
 		_invalid_number, 
 		_invalid_number_format,
@@ -58,44 +60,44 @@ namespace json {
 
 	// токен
 	struct token {
-		token() { };
-		token(const std::string & _s, token_type _t) : string_data(_s), _type(_t) {};
-		token(const char * _s, token_type _t) : string_data(_s), _type(_t) {};
-		token(double _d) : num_data(_d), _type(token_type::_number) {};
-		token(int _i) : num_data(_i), _type(token_type::_number) {};
-		token(token_type _t) : _type(_t) {};
-		token(const token & t ) {
+		token() { num_data = 0; };
+		token(token_type _t) : _type(_t) { num_data = 0; };
+		token(const token & t) {
+			_type = t._type;
 			switch (t._type){
 			case token_type::_number:
+				string_data = "";
 				num_data = t.num_data;
 				break;
 			case token_type::_string:
-				num_data = t.num_data;
+				num_data = 0;
+				string_data = t.string_data;
 				break;
 			default:
-				_type = t._type;
+				num_data = 0;
+				string_data = "";
 				break;
 			}
 		}
 		token & operator=(const token & t) {
+			_type = t._type;
 			switch (t._type) {
 			case token_type::_number:
 				num_data = t.num_data;
 				break;
 			case token_type::_string:
-				num_data = t.num_data;
+				string_data = t.string_data;
 				break;
 			default:
-				_type = t._type;
+				num_data = 0;
+				string_data = "";
 				break;
 			}
 			return *this;
 		}
 		~token() {  };
-		union { // данные
-			std::string string_data;
-			double num_data;
-		}; 
+		std::string string_data;
+		double num_data;
 		token_type _type; // тип 
 	};
 
@@ -148,6 +150,10 @@ namespace json {
 		json_object * as_object();
 		void as_object(json_object object);
 
+		// возвращает занчение по имени
+		json_value * find(const std::string & name);
+		json_value * find(const char * name);
+
 		// возвращает тип
 		value_type type() const;
 		void type(value_type _t);
@@ -162,6 +168,12 @@ namespace json {
 
 		// копирование данных
 		void move_data(json_value && val);
+
+		// поиск заначения в массиве 
+		json_value * find_in_array(const char * name);
+
+		// поиск значения в объекте
+		json_value * find_in_object(const char * name);
 
 		value_type _type = value_type::_null; // тип
 
@@ -247,6 +259,9 @@ namespace json {
 
 		// деструтор класса 
 		~tokenizer();
+
+		// возвращает флаг готовности
+		bool ready() const;
 
 		// возвращает следущий токен 
 		token & get_next_token();

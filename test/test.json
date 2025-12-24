@@ -4,10 +4,15 @@
     "sub obj 1": {
       "string": "str 1",
       "bool": false
-    }, 
+    },
     "sub obj 2": {
       "string": "str 2",
       "bool": false
     }
-  } 
+  },
+  "array": [
+    1,
+    "123",
+    { "a": 2 },
+  ],
 }
