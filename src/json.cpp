@@ -265,7 +265,19 @@ json::json_value::json_value(json_value && val){
 	move_data(std::move(val));
 }
 
-json::json_value & json::json_value::operator=(json_value & val){
+json::json_value::json_value(const char * name, const json_value & val){
+	object_data = new json_object();
+	object_data->insert({ name, val });
+	_type = value_type::_object;
+}
+
+json::json_value::json_value(const char * name, const json_value && val){
+	object_data = new json_object();
+	object_data->insert({ name, std::move(val) });
+	_type = value_type::_object;
+}
+
+json::json_value & json::json_value::operator=(const json_value & val){
 	copy_data(val);
 	return *this;
 }
@@ -350,6 +362,66 @@ json::json_value * json::json_value::find(const char * name){
 		break;
 	}
 	return result;
+}
+
+json::json_value * json::json_value::add(const json_value & val){
+	json_value * result = nullptr;
+	switch (_type){
+	case json::value_type::_array:
+		array_data->push_back(val);
+		result =&  array_data->back();
+		break;
+	}
+	return result;
+}
+
+json::json_value * json::json_value::add(json_value && val){
+	json_value * result = nullptr;
+	switch (_type) {
+	case json::value_type::_array:
+		array_data->push_back(std::move(val));
+		result = &array_data->back();
+		break;
+	}
+	return result;
+}
+
+json::json_value * json::json_value::add(const char * name, const json_value & val){
+	json_value * result = nullptr;
+	switch (_type) {
+	case json::value_type::_object:
+		object_data->insert_or_assign(name, val);
+		result = &object_data->operator[](name);
+		break;
+	case json::value_type::_array:
+		array_data->push_back(json_value(name, val));
+		result = &array_data->back();
+		break;
+	}
+	return result;
+}
+
+json::json_value * json::json_value::add(const char * name, json_value && val){
+	json_value * result = nullptr;
+	switch (_type) {
+	case json::value_type::_object:
+		object_data->insert_or_assign(name, std::move(val));
+		result = &object_data->operator[](name);
+		break;
+	case json::value_type::_array:
+		array_data->push_back(json_value(name, std::move(val)));
+		result = &array_data->back();
+		break;
+	}
+	return result;
+}
+
+json::json_value * json::json_value::add(const std::string & name, const json_value & val){
+	return add(name.c_str(), val);
+}
+
+json::json_value * json::json_value::add(const std::string & name, json_value && val){
+	return add(name.c_str(), std::move(val));
 }
 
 json::value_type json::json_value::type() const{

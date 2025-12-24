@@ -122,8 +122,10 @@ namespace json {
 		json_value(json_object data);
 		json_value(const json_value & val);
 		json_value(json_value && val);
+		json_value(const char * name, const json_value & val);
+		json_value(const char * name, const json_value && val);
 
-		json_value & operator=(json_value & jval);
+		json_value & operator=(const json_value & jval);
 		json_value & operator=(json_value && jval);
 
 		// деструктор класса
@@ -153,6 +155,16 @@ namespace json {
 		// возвращает занчение по имени
 		json_value * find(const std::string & name);
 		json_value * find(const char * name);
+
+		// добавляет элемент в json (при условии что масиив)
+		json_value * add(const json_value & val);
+		json_value * add(json_value && val);
+
+		// добавляет элемент в json (при условии что объект)
+		json_value * add(const char * name, const json_value & val);
+		json_value * add(const char * name, json_value && val);
+		json_value * add(const std::string & name, const json_value & val);
+		json_value * add(const std::string & name, json_value && val);
 
 		// возвращает тип
 		value_type type() const;
