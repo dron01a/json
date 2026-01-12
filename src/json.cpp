@@ -69,6 +69,34 @@ bool json::string_reader::ready(){
 	return !str.empty() && position < str.size();
 }
 
+json::stream_reader::stream_reader(std::istream & stream) {
+	this->stream = &stream;
+}
+
+json::stream_reader::~stream_reader() {
+	stream = nullptr;
+}
+
+char json::stream_reader::get_next_char() {
+	*stream >> cur_char;
+	if (stream->eof()) {
+		cur_char = '\0';
+	}
+	return cur_char;
+}
+
+char & json::stream_reader::get_last_char() {
+	return cur_char;
+}
+
+void json::stream_reader::step_back(int n) {
+	stream->seekg(-n, std::ios::cur);
+}
+
+bool json::stream_reader::ready() {
+	return stream->good();
+}
+
 json::tokenizer::tokenizer(i_reader * _reader){
 	reader = std::move(_reader);
 }
@@ -573,6 +601,17 @@ json::json_value json::json_parser::load_from_string(const char * json_string){
 		return parse();
 	}
 	throw error(0, 0, error_type::_string_is_empty);
+}
+
+json::json_value json::json_parser::load_from_stream(std::istream & stream){
+	if (_tokenizer) {
+		delete _tokenizer;
+	}
+	_tokenizer = new tokenizer(new stream_reader(stream));
+	if (_tokenizer->ready()) {
+		return parse();
+	}
+	throw error(0, 0, error_type::_stream_is_bad);
 }
 
 json::error json::json_parser::get_last_error(){

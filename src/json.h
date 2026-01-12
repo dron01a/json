@@ -19,6 +19,7 @@ namespace json {
 		_none = 0, 
 		_file_not_found,
 		_string_is_empty,
+		_stream_is_bad,
 		_error_token, 
 		_invalid_number, 
 		_invalid_number_format,
@@ -263,6 +264,31 @@ namespace json {
 		std::string str; // строка с json
 	};
 
+	// чтение из потока
+	class stream_reader : public i_reader {
+	public:
+		// конструктор
+		explicit stream_reader(std::istream & stream);
+
+		// деструтор
+		~stream_reader();
+
+		// возвращает предыдущий символ
+		char get_next_char();
+
+		// возвращает текущий символ
+		char & get_last_char();
+
+		// делает шаг назад
+		void step_back(int n);
+
+		// проверка на готовность к работе
+		bool ready();
+	private:
+		std::istream * stream;
+		char cur_char; 
+	};
+
 	// извлекает токены
 	class tokenizer {
 	public:
@@ -315,14 +341,6 @@ namespace json {
 		// деструктор класса
 		~json_parser();
 
-		//// получение значения по ключу
-		//json_value get(const std::string & key);
-		//json_value get(const char * key);
-
-		//// проверка наличия ключа
-		//bool check(const std::string & key);
-		//bool check(const char * key);
-
 		// загрузка из файла
 		json_value load_from_file(const std::string & file_name);
 		json_value load_from_file(const char * file_name);
@@ -330,6 +348,9 @@ namespace json {
 		// загрузка из строки
 		json_value load_from_string(const std::string & json_string);
 		json_value load_from_string(const char * json_string);
+
+		// загрузка из потока
+		json_value load_from_stream(std::istream & stream);
 
 		// возвращает последнюю полученную ошибку
 		error get_last_error();
