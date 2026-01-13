@@ -6,7 +6,7 @@
       "bool": false
     },
     "sub obj 2": {
-      "string": "str 2",
+      "string": "бабах",
       "bool": false
     }
   },
@@ -14,5 +14,6 @@
     1,
     "123",
     { "a": 2 },
+    null
   ],
 }

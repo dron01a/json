@@ -323,6 +323,10 @@ bool & json::json_value::as_bool(){
 	return bool_data;
 }
 
+bool & json::json_value::as_bool() const{
+	return const_cast<json_value*>(this)->as_bool();
+}
+
 void json::json_value::as_bool(bool & val){
 	clear_data();
 	_type = value_type::_bool;
@@ -333,6 +337,10 @@ double & json::json_value::as_num(){
 	return num_data;
 }
 
+double & json::json_value::as_num() const{
+	return const_cast<json_value*>(this)->as_num();
+}
+
 void json::json_value::as_num(double num){
 	clear_data();
 	_type = value_type::_number;
@@ -341,6 +349,10 @@ void json::json_value::as_num(double num){
 
 std::string & json::json_value::as_string(){
 	return *str_data;
+}
+
+std::string & json::json_value::as_string() const{
+	return const_cast<json_value*>(this)->as_string();
 }
 
 void json::json_value::as_string(const std::string & string){
@@ -359,6 +371,10 @@ json::json_array * json::json_value::as_array(){
 	return array_data;
 }
 
+json::json_array * json::json_value::as_array() const{
+	return const_cast<json_value*>(this)->as_array();
+}
+
 void json::json_value::as_array(json_array array){
 	clear_data();
 	_type = value_type::_array;
@@ -367,6 +383,10 @@ void json::json_value::as_array(json_array array){
 
 json::json_object * json::json_value::as_object() {
 	return object_data;
+}
+
+json::json_object * json::json_value::as_object() const{
+	return const_cast<json_value*>(this)->as_object();
 }
 
 void json::json_value::as_object(json_object object){
@@ -565,6 +585,54 @@ json::json_value * json::json_value::find_in_object(const char * name){
 	return _result;
 }
 
+json::string_writer::string_writer(std::string & _data) {
+	_desc = &_data;
+}
+
+void json::string_writer::write_data(const char * data) {
+	*_desc += data;
+}
+
+bool json::string_writer::ready(){
+	return true;
+}
+
+json::file_writer::file_writer(const std::string & file_name) {
+	_desc.open(file_name, std::ios::out | std::ios::binary);
+}
+
+json::file_writer::file_writer(const char * file_name) {
+	_desc.open(file_name, std::ios::out | std::ios::binary);
+}
+
+json::file_writer::~file_writer() {
+	_desc.close();
+}
+
+void json::file_writer::write_data(const char * data) {
+	_desc << data;
+}
+
+bool json::file_writer::ready(){
+	return _desc.good();
+}
+
+json::stream_writer::stream_writer(std::ostream & _data) {
+	_desc = &_data;
+}
+
+json::stream_writer::~stream_writer() {
+	_desc = nullptr;
+}
+
+void json::stream_writer::write_data(const char * data) {
+	*_desc << data;
+}
+
+bool json::stream_writer::ready(){
+	return _desc->good();
+}
+
 json::json_parser::json_parser() : _tokenizer(nullptr) {}
 
 json::json_parser::~json_parser(){
@@ -708,3 +776,115 @@ json::json_value json::json_parser::parse_object(){
 	}
 	return result;
 }
+
+json::json_writer::json_writer() : writer(nullptr){}
+
+json::json_writer::~json_writer(){
+	if (writer) {
+		delete writer;
+	}
+}
+
+void json::json_writer::write_to_file(const json_value & json_val, const std::string & file_name){
+	write_to_file(json_val, file_name.c_str());
+}
+
+void json::json_writer::write_to_file(const json_value & json_val, const char * file_name){
+	if (writer) {
+		delete writer;
+	}
+	writer = new json::file_writer(file_name);
+	if (!writer->ready()) {
+		throw error(0, 0, error_type::_file_not_found);
+	}
+	write(json_val);
+}
+
+void json::json_writer::write_to_string(const json_value & json_val, std::string & json_string){
+	if (writer) {
+		delete writer;
+	}
+	writer = new json::string_writer(json_string);
+	write(json_val);
+	//if (writer->ready()) {
+	//}
+}
+
+void json::json_writer::write_to_stream(const json_value & json_val, std::ostream & stream){
+	if (writer) {
+		delete writer;
+	}
+	writer = new json::stream_writer(stream);
+	if (!writer->ready()) {
+		throw error(0, 0, error_type::_stream_is_bad);
+	}
+	write(json_val);
+}
+
+void json::json_writer::write(const json_value & json_val){
+	switch (json_val.type()){
+	case value_type::_null:
+		writer->write_data("null");
+		break;
+	case value_type::_bool:
+		write_bool(json_val.as_bool());
+		break;
+	case value_type::_number:
+		write_digit(json_val.as_num());
+		break;
+	case value_type::_string:
+		write_string(json_val.as_string());
+		break;
+	case value_type::_array:
+		write_array(*json_val.as_array());
+		break;
+	case value_type::_object:
+		write_object(*json_val.as_object());
+		break;
+	}
+}
+
+void json::json_writer::write_bool(const bool & data){
+	if (data) {
+		writer->write_data("true");
+		return;
+	}
+	writer->write_data("false");
+}
+
+void json::json_writer::write_digit(const double & data){
+	int len = _scprintf("%f", data) + 1;
+	char * d = new char[len];
+	::sprintf_s(d, len, "%f", data);
+	writer->write_data(d);
+	delete[] d;
+}
+
+void json::json_writer::write_string(const std::string & data){
+	writer->write_data("\"");
+	writer->write_data(data.c_str());
+	writer->write_data("\"");
+}
+
+void json::json_writer::write_array(const json_array & data){
+	writer->write_data("[ ");
+	for (size_t i = 0; i < data.size(); ++i) {
+		write(data[i]);
+		writer->write_data(", ");
+	}
+	writer->write_data("]");
+}
+
+void json::json_writer::write_object(const json_object & data){
+	writer->write_data("{ ");
+	for (auto it = data.begin(); it != data.end(); ++it) {
+		writer->write_data("\"");
+		writer->write_data(it->first.c_str());
+		writer->write_data("\"");
+		writer->write_data(" : ");
+		write(it->second);
+		writer->write_data(", ");
+	}
+	writer->write_data("}");
+}
+

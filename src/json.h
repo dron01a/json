@@ -6,6 +6,7 @@
 #include <vector>
 #include <map>
 #include <fstream>
+#include <stdio.h>
 
 namespace json {
 
@@ -134,23 +135,28 @@ namespace json {
 
 		// для получения булевого значения 
 		bool & as_bool();
+		bool & as_bool() const;
 		void as_bool(bool & val);
 
 		// для получения числового значения
 		double & as_num();
+		double & as_num() const;
 		void as_num(double num);
 
 		// для получения строки
 		std::string & as_string();
+		std::string & as_string() const;
 		void as_string(const std::string & string);
 		void as_string(const char * string);
 
 		// для получения массива
 		json_array * as_array();
+		json_array * as_array() const;
 		void as_array(json_array array);
 
 		// для получения объекта
 		json_object * as_object();
+		json_object * as_object() const;
 		void as_object(json_object object);
 
 		// возвращает занчение по имени
@@ -327,9 +333,59 @@ namespace json {
 
 	};
 
-	// класс записи
+	// интерфейс класса записи 
 	class i_writer {
+	public:
+		virtual ~i_writer() = default;
+		virtual void write_data(const char * data) = 0;
+		virtual bool ready() = 0;
+	};
 
+	class string_writer : public i_writer {
+	public:
+		// конструтор класса
+		explicit string_writer(std::string & _data);
+
+		// запись данных
+		void write_data(const char * data);
+
+		// проверка готовности 
+		bool ready();
+	private:
+		std::string * _desc; // указатель на строку куда записываем
+	};
+
+	class file_writer : public i_writer {
+	public:
+		// конструтор класса
+		explicit file_writer(const std::string & file_name);
+		explicit file_writer(const char * file_name);
+
+		~file_writer();
+
+		// запись данных
+		void write_data(const char * data);
+
+		// проверка готовности 
+		bool ready();
+	private:
+		std::ofstream _desc; // файл для записи;
+	};
+
+	class stream_writer : public i_writer {
+	public:
+		// конструтор класса
+		explicit stream_writer(std::ostream & _data);
+
+		~stream_writer();
+
+		// запись данных
+		void write_data(const char * data);
+
+		// проверка готовности 
+		bool ready();
+	private:
+		std::ostream * _desc; // указатель на поток куда записываем
 	};
 
 	// класс парсера
@@ -373,6 +429,47 @@ namespace json {
 
 		error last_error; // последняя полученная ошибка
 	};
+
+	class json_writer{
+	public:
+		// конструктор класса
+		json_writer();
+
+		// деструктор класса
+		~json_writer();
+
+		// записывает в файл
+		void write_to_file(const json_value & json_val, const std::string & file_name);
+		void write_to_file(const json_value & json_val, const char * file_name);
+
+		// записывает в строку
+		void write_to_string(const json_value & json_val, std::string & json_string);
+
+		// записывает в поток
+		void write_to_stream(const json_value & json_val, std::ostream & stream);
+
+	private:
+		// записывает json_value 
+		void write(const json_value & json_val);
+
+		// записывает булево значение
+		void write_bool(const bool & data);
+
+		// записывает число
+		void write_digit(const double & data);
+
+		// записывает строку
+		void write_string(const std::string & data);
+		
+		// записвает массив
+		void write_array(const json_array & data);
+
+		// записывает объект 
+		void write_object(const json_object & data);
+
+		i_writer * writer; // указатель на записывающий класс
+	};
+
 
 };
 
