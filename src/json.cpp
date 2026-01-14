@@ -138,7 +138,7 @@ json::token & json::tokenizer::get_next_token(){
 	case ',':
 		cur_token = token(token_type::_comma);
 		break;
-	case '-': case '1':case '2': case '3':case '4': case '5':
+	case '-':case '0': case '1':case '2': case '3':case '4': case '5':
 	case '6': case '7': case '8': case '9':
 		cur_token.num_data = number_parse();
 		cur_token._type = token_type::_number;
@@ -202,33 +202,36 @@ std::string json::tokenizer::string_parse(){
 
 double json::tokenizer::number_parse(){
 	std::string result;
-	if (reader->get_last_char() == '-') {
-		result += reader->get_last_char();
-		reader->get_next_char();
-	}
 	char cur_char = reader->get_last_char();
-	while (std::isdigit(cur_char)) {
+	if (cur_char == '-') {
 		result += cur_char;
 		cur_char = reader->get_next_char();
-		switch (cur_char){
-		case 'E':
-		case 'e':
+		if (!std::isdigit(cur_char) && cur_char != '.') {
+			throw error(col, str, error_type::_invalid_number);
+		}
+	}
+	while (std::isdigit(cur_char)) {
+		result += cur_char;
+		cur_char = reader->get_next_char();	
+	}
+	if (cur_char == '.') {
+		result += cur_char;
+		cur_char = reader->get_next_char();
+		while (std::isdigit(cur_char)) {
 			result += cur_char;
 			cur_char = reader->get_next_char();
-			if (cur_char == '+' || cur_char == '-') {
-				result += cur_char;
-				cur_char = reader->get_next_char();
-			}
-			break;
-		case '.':
+		}
+	}
+	if (cur_char == 'e' || cur_char == 'E') {
+		result += cur_char;
+		cur_char = reader->get_next_char();
+		if (cur_char == '+' || cur_char == '-') {
 			result += cur_char;
 			cur_char = reader->get_next_char();
-			if (!std::isdigit(cur_char)) {
-				throw error(col, str, error_type::_invalid_number_format);
-			}
+		}
+		while (std::isdigit(cur_char)) {
 			result += cur_char;
 			cur_char = reader->get_next_char();
-			break;
 		}
 	}
 	try {
@@ -867,10 +870,10 @@ void json::json_writer::write_string(const std::string & data){
 }
 
 void json::json_writer::write_array(const json_array & data){
-	writer->write_data("[ ");
+	writer->write_data("[");
 	for (size_t i = 0; i < data.size(); ++i) {
 		write(data[i]);
-		writer->write_data(", ");
+		writer->write_data(",");
 	}
 	writer->write_data("]");
 }
@@ -881,9 +884,9 @@ void json::json_writer::write_object(const json_object & data){
 		writer->write_data("\"");
 		writer->write_data(it->first.c_str());
 		writer->write_data("\"");
-		writer->write_data(" : ");
+		writer->write_data(":");
 		write(it->second);
-		writer->write_data(", ");
+		writer->write_data(",");
 	}
 	writer->write_data("}");
 }

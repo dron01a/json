@@ -3,7 +3,8 @@
   "obj": {
     "sub obj 1": {
       "string": "str 1",
-      "bool": false
+      "bool": false,
+      "num" :  0
     },
     "sub obj 2": {
       "string": "бабах",

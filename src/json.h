@@ -325,7 +325,7 @@ namespace json {
 		// получает число
 		double number_parse();
 
-		// парсит литералы
+		// парсит литералов
 		bool literal_parse(std::string _literal);
 
 		token cur_token; // текущий токен
@@ -430,6 +430,7 @@ namespace json {
 		error last_error; // последняя полученная ошибка
 	};
 
+	// класс для записи json
 	class json_writer{
 	public:
 		// конструктор класса
