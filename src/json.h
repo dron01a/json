@@ -3,6 +3,8 @@
 
 #include <cctype>
 #include <string>
+#include <sstream>
+#include <iomanip>
 #include <vector>
 #include <map>
 #include <fstream>
@@ -10,6 +12,8 @@
 
 namespace json {
 
+	class i_reader;
+	class i_writer;
 	class json_value;
 
 	using json_object = std::map<std::string, json_value>;
@@ -24,6 +28,11 @@ namespace json {
 		_error_token, 
 		_invalid_number, 
 		_invalid_number_format,
+		_invalid_string,
+		_invalid_escape, 
+		_invalid_unicode,
+		_invalid_unicode_char,
+		_invalid_unicode_low_pair,
 		_literal_error,
 		_invalid_value,
 		_invalid_object,
@@ -109,6 +118,38 @@ namespace json {
 		error(size_t _c, size_t _s, error_type _e) : col(_c), str(_s), type(_e) {}
 		size_t col = 0, str = 0;
 		error_type type = error_type::_none;
+	};
+
+	// класс обработки строк с учетом escape-последовательностей и юникода
+	class string_coder {
+	public:
+		// конструктор класса
+		string_coder() {};
+
+		// декодирование
+		std::string decode(i_reader * reader, size_t & line, size_t & col);
+
+		// кодирование
+		std::string encode(const std::string & src_string);
+	private:
+
+		// чтение значений юникода 
+		char32_t read_unicode(i_reader * reader, size_t & line, size_t & col);
+
+		// чтение меньшей пары
+		char32_t read_low_pair(i_reader * reader, size_t & line, size_t & col);
+
+		// преобразование utf32 в utf8
+		std::string utf32_to_utf8(char32_t code);
+
+		// экранирует сиволы unicode
+		std::string unicode_escape(uint32_t code);
+
+		// оределяет длинну utf8 
+		size_t get_utf8_len(unsigned char fb);
+
+		// декодирование utf8 
+		uint32_t decode_utf8(const std::string & str, size_t & position);
 	};
 
 	// класс занчения 
