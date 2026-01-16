@@ -436,17 +436,10 @@ std::string json::tokenizer::string_parse() {
 		case '\0':
 			throw error(col, str, error_type::_invalid_string);
 		case '\\':
-		{
-
-			string_coder coder; 
-			result += coder.decode(reader, str, col);
-
-		}
-			/*cur_char = reader->get_next_char();
-			if (cur_char == '\0') {
-				throw error(col, str, error_type::_invalid_string);
-			}*/
-
+			{
+				string_coder coder; 
+				result += coder.decode(reader, str, col);
+			}
 			break;
 		default:
 			result += cur_char;
@@ -1037,12 +1030,118 @@ json::json_value json::json_parser::parse_object() {
 	return result;
 }
 
-json::json_writer::json_writer() : writer(nullptr) {}
+json::write_flags json::operator|(write_flags a, write_flags b) {
+	return static_cast<write_flags>((uint32_t)a | (uint32_t)b);
+}
 
-json::json_writer::~json_writer() {
-	/*if (writer) {
-		delete writer;
-	}*/
+json::write_flags json::operator&(write_flags a, write_flags b) {
+	return static_cast<write_flags>((uint32_t)a & (uint32_t)b);
+}
+
+json::write_flags & json::operator|=(write_flags a, write_flags b) {
+	a = a | b;
+	return a;
+}
+
+json::write_flags & json::operator&=(write_flags a, write_flags b) {
+	a = a | b;
+	return a;
+}
+
+json::write_config json::compact() {
+	write_config conf;
+	conf.reset();
+	return conf;
+}
+
+json::write_config json::format() {
+	write_config conf;
+	conf.set_flag(write_flags::format);
+	return conf;
+}
+
+json::write_config::write_config() : _flags(0) {}
+
+void json::write_config::set_flag(write_flags flag) {
+	this->_flags |= (uint32_t)flag;
+}
+
+void json::write_config::reset_flag(write_flags flag) {
+	_flags ^= (uint32_t)flag & (_flags & (uint32_t)flag);
+}
+
+void json::write_config::reset() {
+	_flags = 0;
+}
+
+bool json::write_config::has_flag(write_flags flag) {
+	return (_flags & (uint32_t)flag) != 0;
+}
+
+void json::write_config::indent(const char * str) {
+	_indent = str;
+}
+
+std::string & json::write_config::indent() {
+	return _indent;
+}
+
+std::string json::write_config::indent() const {
+	return _indent;
+}
+
+void json::write_config::space(const char * str) {
+	_space = str;
+}
+
+std::string & json::write_config::space() {
+	return _space;
+}
+
+std::string json::write_config::space() const {
+	return _space;
+}
+
+void json::write_config::space_count(size_t n) {
+	_space_count = n;
+}
+
+size_t & json::write_config::space_count() {
+	return _space_count;
+}
+
+size_t json::write_config::space_count() const {
+	return _space_count;
+}
+
+void json::write_config::new_line(const char * str) {
+	_new_line = str;
+}
+
+std::string & json::write_config::new_line() {
+	return _new_line;
+}
+
+std::string json::write_config::new_line() const {
+	return _new_line;
+}
+
+void json::write_config::presition(size_t n) {
+	_presit = n;
+}
+
+size_t & json::write_config::presition() {
+	return _presit;
+}
+
+size_t json::write_config::presition() const {
+	return _presit;
+}
+
+json::json_writer::json_writer(write_config conf) : writer(nullptr) , _config(conf) {
+	if (_config.has_flag(write_flags::using_tabs)) {
+		_config.space("\t");
+	}
 }
 
 void json::json_writer::write_to_file(const json_value & json_val, const std::string & file_name) {
@@ -1054,12 +1153,18 @@ void json::json_writer::write_to_file(const json_value & json_val, const char * 
 	if (!writer->ready()) {
 		throw error(0, 0, error_type::_file_not_found);
 	}
+	if (_config.has_flag(write_flags::using_tabs)) {
+		_config.space("\t");
+	}
 	write(json_val);
 	delete writer;
 }
 
 void json::json_writer::write_to_string(const json_value & json_val, std::string & json_string) {
 	writer = new json::string_writer(json_string);
+	if (_config.has_flag(write_flags::using_tabs)) {
+		_config.space("\t");
+	}
 	write(json_val);
 	delete writer;
 }
@@ -1069,8 +1174,42 @@ void json::json_writer::write_to_stream(const json_value & json_val, std::ostrea
 	if (!writer->ready()) {
 		throw error(0, 0, error_type::_stream_is_bad);
 	}
+	if (_config.has_flag(write_flags::using_tabs)) {
+		_config.space("\t");
+	}
 	write(json_val);
 	delete writer;
+}
+
+void json::json_writer::config(write_config conf){
+	_config = conf;
+}
+
+json::write_config & json::json_writer::config(){
+	return _config;
+}
+
+json::write_config json::json_writer::config() const{
+	return _config;
+}
+
+void json::json_writer::write_indent(){
+	if (!_config.has_flag(write_flags::format)) {
+		return;
+	}
+	writer->write_data(_config.new_line().c_str());
+	for (size_t i = 0; i < indent_level; ++i) {
+		writer->write_data(_config.indent().c_str());
+	}
+}
+
+void json::json_writer::write_space(){
+	if (!_config.has_flag(write_flags::format)) {
+		return;
+	}
+	for (size_t i = 0; i < _config.space_count(); ++i) {
+		writer->write_data(_config.space().c_str());
+	}
 }
 
 void json::json_writer::write(const json_value & json_val) {
@@ -1097,47 +1236,68 @@ void json::json_writer::write(const json_value & json_val) {
 }
 
 void json::json_writer::write_bool(const bool & data) {
-	if (data) {
-		writer->write_data("true");
-		return;
+	if (!_config.has_flag(write_flags::bool_as_num)) {
+		writer->write_data((data ? "true" : "false"));
 	}
-	writer->write_data("false");
+	else {
+		writer->write_data((data ? "0" : "1"));
+	}
 }
 
 void json::json_writer::write_digit(const double & data) {
-	int len = _scprintf("%f", data) + 1;
-	char * d = new char[len];
-	::sprintf_s(d, len, "%f", data);
-	writer->write_data(d);
-	delete[] d;
+	double mult = std::pow(10, _config.presition());
+	double res = std::round(data*mult) / mult;
+	std::string data_to_write = std::to_string(res);
+	size_t dot_pos = data_to_write.find(".");
+	if (dot_pos != std::string::npos) {
+		data_to_write.substr(0, dot_pos + _config.presition() + 1);
+		while (!data_to_write.empty() && data_to_write.back() == '0'){
+			data_to_write.pop_back();
+		}
+		if (!data_to_write.empty() && data_to_write.back() == '.') {
+			data_to_write.pop_back();
+		}
+	}
+	writer->write_data(data_to_write.c_str());
 }
 
 void json::json_writer::write_string(const std::string & data) {
 	string_coder coder;
-	writer->write_data("\"");
+	char quote = _config.has_flag(write_flags::single_quotes) ? '\'' : '\"';
+	writer->write_data(std::string(1, quote).c_str());
 	writer->write_data(coder.encode(data).c_str());
-	writer->write_data("\"");
+	writer->write_data(std::string(1, quote).c_str());
+
 }
 
 void json::json_writer::write_array(const json_array & data) {
 	writer->write_data("[");
+	indent_level++;
 	for (size_t i = 0; i < data.size(); ++i) {
 		write(data[i]);
 		writer->write_data(",");
+		write_indent();
 	}
+	indent_level--;
+	write_indent();
 	writer->write_data("]");
 }
 
 void json::json_writer::write_object(const json_object & data) {
 	writer->write_data("{ ");
+	indent_level++;
+	char quote = _config.has_flag(write_flags::single_quotes) ? '\'' : '\"';
 	for (auto it = data.begin(); it != data.end(); ++it) {
-		writer->write_data("\"");
+		write_indent();
+		writer->write_data(std::string(1, quote).c_str());
 		writer->write_data(it->first.c_str());
-		writer->write_data("\"");
+		writer->write_data(std::string(1, quote).c_str());
 		writer->write_data(":");
+		write_space();
 		write(it->second);
 		writer->write_data(",");
 	}
+	indent_level--;
+	write_indent();
 	writer->write_data("}");
 }
-
