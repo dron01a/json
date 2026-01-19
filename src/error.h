@@ -3,6 +3,50 @@
 
 #include <string>
 
+#define RUS_ERROR_MESSAGE 
+
+#ifdef  RUS_ERROR_MESSAGE
+
+#define NONE
+#define FILE_NOT_FOUND "файл не найден"
+#define STRING_IS_EMPTY "исходна€ строка пуста€"
+#define STREAM_ERROR "ошибка потока ввода вывода"
+#define ERROR_TOKEN "ошибочный символ/строка"
+#define INVALID_NUM "ошибка в записи числа"
+#define INVALID_NUM_FORMAT "неверный формат числа"
+#define INVALID_STR "ошибка в записи строки"
+#define INVALID_ESCAPE "неверна€ escape-поледовательность"
+#define INVALID_UNICODE "неверна€ unicode-поледовательность"
+#define INVALID_UNICODE_CHAR "неверный unicode-символ"
+#define INVALID_UNICODE_LP "неверный unicode нижн€€ пара"
+#define LITERAL_ERROR "ошибка при чтении ключевого слова"
+#define INVALID_VAL "ошибка обработки json-значени€"
+#define INVALID_OBJECT "ошибка обработки json-объекта"
+#define INVALID_ARRAY_VALUE "ошибка обработки члена json-массива"
+
+#endif // ! RUS_ERROR_MESSAGE
+
+#ifdef  ENG_ERROR_MESSAGE
+
+#define NONE
+#define FILE_NOT_FOUND "file not found"
+#define STRING_IS_EMPTY "string is empty"
+#define STREAM_ERROR "stream is bad"
+#define ERROR_TOKEN "error token"
+#define INVALID_NUM "invalid number"
+#define INVALID_NUM_FORMAT "invalid number format"
+#define INVALID_STR "invalid string"
+#define INVALID_ESCAPE "invalid escape char"
+#define INVALID_UNICODE "invalid unicode string"
+#define INVALID_UNICODE_CHAR "invalid unicode char"
+#define INVALID_UNICODE_LP "invalid unicode low pair"
+#define LITERAL_ERROR "error from read key-word"
+#define INVALID_VAL "json-value processing error"
+#define INVALID_OBJECT "json-object processing error"
+#define INVALID_ARRAY_VALUE "json-array value processing error"
+
+#endif // ! ENG_ERROR_MESSAGE
+
 namespace json {
 
 	// типы ошибок
@@ -33,6 +77,10 @@ namespace json {
 		error_type type = error_type::_none;
 	};
 
+	// дл€ вывода ошибок
+	std::ostream & operator<<(std::ostream & stream, json::error & err);
+
+	std::string to_string(error & err);
 }
 
 
