@@ -481,12 +481,6 @@ namespace json {
 		bool_as_num = 1 << 6, // записывает тип bool как 1 или 0
 	};
 
-	// операции для флагов
-	write_flags operator|(write_flags a, write_flags b);
-	write_flags operator&(write_flags a, write_flags b);
-	write_flags & operator|=(write_flags a, write_flags b);
-	write_flags & operator&=(write_flags a, write_flags b);
-
 	// класс конфигурации для записывателя
 	class write_config {
 	public:

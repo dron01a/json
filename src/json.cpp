@@ -1030,24 +1030,6 @@ json::json_value json::json_parser::parse_object() {
 	return result;
 }
 
-json::write_flags json::operator|(write_flags a, write_flags b) {
-	return static_cast<write_flags>((uint32_t)a | (uint32_t)b);
-}
-
-json::write_flags json::operator&(write_flags a, write_flags b) {
-	return static_cast<write_flags>((uint32_t)a & (uint32_t)b);
-}
-
-json::write_flags & json::operator|=(write_flags a, write_flags b) {
-	a = a | b;
-	return a;
-}
-
-json::write_flags & json::operator&=(write_flags a, write_flags b) {
-	a = a | b;
-	return a;
-}
-
 json::write_config json::compact() {
 	write_config conf;
 	conf.reset();
@@ -1057,6 +1039,8 @@ json::write_config json::compact() {
 json::write_config json::format() {
 	write_config conf;
 	conf.set_flag(write_flags::format);
+	conf.space_count(1);
+	conf.indent("\t");
 	return conf;
 }
 
@@ -1271,12 +1255,16 @@ void json::json_writer::write_string(const std::string & data) {
 }
 
 void json::json_writer::write_array(const json_array & data) {
+	bool first = true;
 	writer->write_data("[");
 	indent_level++;
 	for (size_t i = 0; i < data.size(); ++i) {
-		write(data[i]);
-		writer->write_data(",");
+		first ? first = !first : writer->write_data(",");
 		write_indent();
+		write(data[i]);
+	}
+	if (_config.has_flag(write_flags::trailing_commas)) {
+		writer->write_data(",");
 	}
 	indent_level--;
 	write_indent();
@@ -1284,17 +1272,18 @@ void json::json_writer::write_array(const json_array & data) {
 }
 
 void json::json_writer::write_object(const json_object & data) {
+	bool first = true;
 	writer->write_data("{ ");
 	indent_level++;
-	char quote = _config.has_flag(write_flags::single_quotes) ? '\'' : '\"';
 	for (auto it = data.begin(); it != data.end(); ++it) {
+		first ? first = !first : writer->write_data(",");
 		write_indent();
-		writer->write_data(std::string(1, quote).c_str());
-		writer->write_data(it->first.c_str());
-		writer->write_data(std::string(1, quote).c_str());
+		write_string(it->first);
 		writer->write_data(":");
 		write_space();
 		write(it->second);
+	}
+	if (_config.has_flag(write_flags::trailing_commas)) {
 		writer->write_data(",");
 	}
 	indent_level--;
