@@ -18,7 +18,7 @@
 #define INVALID_ESCAPE "неверна€ escape-поледовательность"
 #define INVALID_UNICODE "неверна€ unicode-поледовательность"
 #define INVALID_UNICODE_CHAR "неверный unicode-символ"
-#define INVALID_UNICODE_LP "неверный unicode нижн€€ пара"
+#define INVALID_UNICODE_LP "неверный unicode-символ нижн€€ пара"
 #define LITERAL_ERROR "ошибка при чтении ключевого слова"
 #define INVALID_VAL "ошибка обработки json-значени€"
 #define INVALID_OBJECT "ошибка обработки json-объекта"
@@ -66,7 +66,8 @@ namespace json {
 		_literal_error,
 		_invalid_value,
 		_invalid_object,
-		_invalid_array_value
+		_invalid_array_value,
+		_parse_error,
 	};
 
 	// структура ошибки

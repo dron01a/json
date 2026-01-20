@@ -132,21 +132,22 @@ namespace json {
 		// возвращает последнюю полученную ошибку
 		error get_last_error();
 
-	private:
+		// обща€ функци€ дл€ загрузки данных (на случай создани€ пользовательских i_reader)
+		json_value load_data(i_reader * r, error_type err);
 
+	private:
+	
 		// запускает парсинг
-		json_value parse();
+		json_value parse(tokenizer & _tokenizer);
 
 		// парсинг json-начени€
-		json_value parse_json_value();
+		json_value parse_json_value(tokenizer & _tokenizer);
 
 		// парсинг массива 
-		json_value parse_array();
+		json_value parse_array(tokenizer & _tokenizer);
 
 		// парсинг объекта
-		json_value parse_object();
-
-		tokenizer * _tokenizer; // дл€ получени€ новых токенов
+		json_value parse_object(tokenizer & _tokenizer);
 
 		error last_error; // последн€€ полученна€ ошибка
 	};

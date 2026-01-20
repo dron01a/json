@@ -25,7 +25,7 @@ namespace json {
 		explicit file_reader(const std::string & file_name);
 		explicit file_reader(const char * file_name);
 
-		// деструтор
+		// деструктор
 		~file_reader();
 
 		// возвращает следующий символ
@@ -39,6 +39,7 @@ namespace json {
 
 		// проверка на готовность к работе
 		bool ready();
+
 	private:
 		std::ifstream file;
 		char cur_char;
@@ -52,7 +53,7 @@ namespace json {
 		explicit string_reader(const std::string & string);
 		explicit string_reader(const char * string);
 
-		// деструтор
+		// деструктор
 		~string_reader() {};
 
 		// возвращает предыдущий символ
@@ -77,7 +78,7 @@ namespace json {
 		// конструктор
 		explicit stream_reader(std::istream & stream);
 
-		// деструтор
+		// деструктор
 		~stream_reader();
 
 		// возвращает предыдущий символ

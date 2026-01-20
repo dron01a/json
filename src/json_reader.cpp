@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 json::file_reader::file_reader(const std::string & file_name) {
-	file.open(file_name, std::ios::binary);
+	file.open(file_name, std::ios::in | std::ios::binary);
 }
 
 json::file_reader::file_reader(const char * file_name) {
@@ -103,7 +103,6 @@ void json::stream_reader::step_back(int n) {
 bool json::stream_reader::ready() {
 	return stream->good();
 }
-
 
 std::string json::string_coder::decode(i_reader * reader, size_t & line, size_t & col) {
 	char cur_char = reader->get_next_char();

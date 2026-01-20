@@ -173,27 +173,16 @@ bool json::tokenizer::literal_parse(std::string _literal) {
 	return true;
 }
 
-json::json_parser::json_parser() : _tokenizer(nullptr) {}
+json::json_parser::json_parser() { }
 
-json::json_parser::~json_parser() {
-	if (_tokenizer) {
-		delete _tokenizer;
-	}
-}
+json::json_parser::~json_parser() { }
 
 json::json_value json::json_parser::load_from_file(const std::string & file_name) {
 	return load_from_string(file_name.c_str());
 }
 
 json::json_value json::json_parser::load_from_file(const char * file_name) {
-	if (_tokenizer) {
-		delete _tokenizer;
-	}
-	_tokenizer = new tokenizer(new file_reader(file_name));
-	if (_tokenizer->ready()) {
-		return parse();
-	}
-	throw error(0, 0, error_type::_file_not_found);
+	return load_data(new file_reader(file_name), error_type::_file_not_found);
 }
 
 json::json_value json::json_parser::load_from_string(const std::string & json_string) {
@@ -201,41 +190,35 @@ json::json_value json::json_parser::load_from_string(const std::string & json_st
 }
 
 json::json_value json::json_parser::load_from_string(const char * json_string) {
-	if (_tokenizer) {
-		delete _tokenizer;
-	}
-	_tokenizer = new tokenizer(new string_reader(json_string));
-	if (_tokenizer->ready()) {
-		return parse();
-	}
-	throw error(0, 0, error_type::_string_is_empty);
+	return load_data(new string_reader(json_string), error_type::_string_is_empty);
 }
 
 json::json_value json::json_parser::load_from_stream(std::istream & stream) {
-	if (_tokenizer) {
-		delete _tokenizer;
-	}
-	_tokenizer = new tokenizer(new stream_reader(stream));
-	if (_tokenizer->ready()) {
-		return parse();
-	}
-	throw error(0, 0, error_type::_stream_is_bad);
+	return load_data(new stream_reader(stream), error_type::_stream_is_bad);
 }
 
 json::error json::json_parser::get_last_error() {
 	return last_error;
 }
 
-json::json_value json::json_parser::parse() {
+json::json_value json::json_parser::load_data(i_reader * r, error_type err){
+	tokenizer _tokenizer(r);
+	if (_tokenizer.ready()) {
+		return parse(_tokenizer);
+	}
+	throw error(0, 0, err);
+}
+
+json::json_value json::json_parser::parse(tokenizer & _tokenizer) {
 	json_value _result;
 	try {
-		token cur_token = _tokenizer->get_next_token();
+		token cur_token = _tokenizer.get_next_token();
 		switch (cur_token._type) {
 		case token_type::_open_curly_brt:
-			_result = parse_object();
+			_result = parse_object(_tokenizer);
 			break;
 		case token_type::_open_square_brt:
-			_result = parse_array();
+			_result = parse_array(_tokenizer);
 			break;
 		}
 	}
@@ -245,13 +228,13 @@ json::json_value json::json_parser::parse() {
 	return _result;
 }
 
-json::json_value json::json_parser::parse_json_value() {
-	token cur_token = _tokenizer->get_last_token();
+json::json_value json::json_parser::parse_json_value(tokenizer & _tokenizer) {
+	token cur_token = _tokenizer.get_last_token();
 	switch (cur_token._type) {
 	case token_type::_open_curly_brt:
-		return parse_object();
+		return parse_object(_tokenizer);
 	case token_type::_open_square_brt:
-		return parse_array();
+		return parse_array(_tokenizer);
 	case token_type::_null:
 		return json_value();
 	case token_type::_number:
@@ -263,56 +246,56 @@ json::json_value json::json_parser::parse_json_value() {
 	case token_type::_false:
 		return json_value(false);
 	}
-	throw error(_tokenizer->col, _tokenizer->str, error_type::_invalid_value);
+	throw error(_tokenizer.col, _tokenizer.str, error_type::_invalid_value);
 }
 
-json::json_value json::json_parser::parse_array() {
+json::json_value json::json_parser::parse_array(tokenizer & _tokenizer) {
 	json_value result;
 	result.as_array({});
 	bool _parse = true;
-	_tokenizer->get_next_token();
-	while (_parse && _tokenizer->get_last_token()._type != token_type::_close_square_brt) {
-		result.as_array()->push_back(parse_json_value());
-		_tokenizer->get_next_token();
-		switch (_tokenizer->get_last_token()._type) {
+	_tokenizer.get_next_token();
+	while (_parse && _tokenizer.get_last_token()._type != token_type::_close_square_brt) {
+		result.as_array()->push_back(parse_json_value(_tokenizer));
+		_tokenizer.get_next_token();
+		switch (_tokenizer.get_last_token()._type) {
 		case token_type::_comma:
-			_tokenizer->get_next_token();
+			_tokenizer.get_next_token();
 			break;
 		case token_type::_close_square_brt:
 			_parse = false;
 			break;
 		default:
-			throw error(_tokenizer->col, _tokenizer->str, error_type::_invalid_array_value);
+			throw error(_tokenizer.col, _tokenizer.str, error_type::_invalid_array_value);
 		}
 	}
-	if (!_parse && _tokenizer->get_last_token()._type != token_type::_close_square_brt) {
-		throw error(_tokenizer->col, _tokenizer->str, error_type::_invalid_array_value);
+	if (!_parse && _tokenizer.get_last_token()._type != token_type::_close_square_brt) {
+		throw error(_tokenizer.col, _tokenizer.str, error_type::_invalid_array_value);
 	}
 	return result;
 }
 
-json::json_value json::json_parser::parse_object() {
+json::json_value json::json_parser::parse_object(tokenizer & _tokenizer) {
 	json_value result;
 	result.as_object({});
-	_tokenizer->get_next_token();
-	while (_tokenizer->get_last_token()._type != token_type::_close_curly_brt) {
-		if (_tokenizer->get_last_token()._type == token_type::_string) {
-			std::string key = _tokenizer->get_last_token().string_data;
-			_tokenizer->get_next_token();
-			if (_tokenizer->get_last_token()._type != token_type::_colon) {
-				throw error(_tokenizer->col, _tokenizer->str, error_type::_invalid_object);
+	_tokenizer.get_next_token();
+	while (_tokenizer.get_last_token()._type != token_type::_close_curly_brt) {
+		if (_tokenizer.get_last_token()._type == token_type::_string) {
+			std::string key = _tokenizer.get_last_token().string_data;
+			_tokenizer.get_next_token();
+			if (_tokenizer.get_last_token()._type != token_type::_colon) {
+				throw error(_tokenizer.col, _tokenizer.str, error_type::_invalid_object);
 			}
-			_tokenizer->get_next_token();
-			json_value val = parse_json_value();
+			_tokenizer.get_next_token();
+			json_value val = parse_json_value(_tokenizer);
 			result.as_object()->insert({ std::move(key), std::move(val) });
-			_tokenizer->get_next_token();
+			_tokenizer.get_next_token();
 			continue;
 		}
-		if (_tokenizer->get_last_token()._type == token_type::_comma) {
-			_tokenizer->get_next_token();
+		if (_tokenizer.get_last_token()._type == token_type::_comma) {
+			_tokenizer.get_next_token();
 			continue;
 		}
-		throw error(_tokenizer->col, _tokenizer->str, error_type::_error_token);
+		throw error(_tokenizer.col, _tokenizer.str, error_type::_error_token);
 	}
 	return result;
 }
