@@ -57,9 +57,6 @@ namespace json {
 	//	std::vector<json_value*> select(const char * key);
 
 	private:
-
-		json_parser _parser; // парсер 
-		json_writer _writer; // для записи
 		std::vector<error> _errors; // вектор с ошибками
 		json_value * _root; // корневой элемент 
 

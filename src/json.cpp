@@ -10,12 +10,15 @@ json::json_doc::json_doc(json_value && val){
 	_root = new json_value(std::move(val));
 }
 
-json::json_doc::json_doc(const json_doc & doc)
-{
+json::json_doc::json_doc(const json_doc & doc){
+	_errors = doc._errors;
+	_root = new json_value(doc._root);
 }
 
-json::json_doc::json_doc(json_doc && doc)
-{
+json::json_doc::json_doc(json_doc && doc){
+	_errors = std::move(doc._errors);
+	_root = std::move(doc._root);
+	doc._root = nullptr;
 }
 
 json::json_doc::~json_doc(){
@@ -24,17 +27,22 @@ json::json_doc::~json_doc(){
 	}
 }
 
-json::json_doc & json::json_doc::operator=(const json_doc & doc)
-{
-	// TODO: вставьте здесь оператор return
+json::json_doc & json::json_doc::operator=(const json_doc & doc){
+	if (_root) {
+		delete _root;
+	}
+	_errors = doc._errors;
+	_root = new json_value(doc._root);
 }
 
-json::json_doc & json::json_doc::operator=(json_doc && doc)
-{
-	// TODO: вставьте здесь оператор return
+json::json_doc & json::json_doc::operator=(json_doc && doc){
+	_errors = std::move(doc._errors);
+	_root = std::move(doc._root);
+	doc._root = nullptr;
 }
 
 void json::json_doc::load(const char * data_string, bool is_file){
+	json_parser _parser;
 	if (!_errors.empty()) {
 		_errors.clear();
 	}
@@ -50,6 +58,7 @@ void json::json_doc::load(const char * data_string, bool is_file){
 }
 
 void json::json_doc::load(std::istream & stream){
+	json_parser _parser;
 	if (!_errors.empty()) {
 		_errors.clear();
 	}
@@ -63,26 +72,24 @@ void json::json_doc::save(const char * data_string){
 	if (!_errors.empty()) {
 		return;
 	}
+	json_writer _writer;
 	_writer.write_to_file(*_root, data_string);
-	if (_parser.get_last_error().type != error_type::_none) {
-		_errors.push_back(_parser.get_last_error());
-	}
 }
 
 void json::json_doc::save(std::ostream & stream){
 	if (!_errors.empty()) {
 		return;
 	}
+	json_writer _writer;
 	_writer.write_to_stream(*_root, stream);
-	if (_parser.get_last_error().type != error_type::_none) {
-		_errors.push_back(_parser.get_last_error());
-	}
+
 }
 
 std::string json::json_doc::to_string(){
 	if (!_errors.empty()) {
 		return;
 	}
+	json_writer _writer;
 	std::string result;
 	_writer.write_to_string(*_root, result);
 	return result;
