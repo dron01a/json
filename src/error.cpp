@@ -55,6 +55,7 @@ std::ostream & json::operator<<(std::ostream & stream, json::error & err){
 		break;
 	}
 	stream << std::endl;
+	return stream;
 }
 
 std::string json::to_string(error & err){

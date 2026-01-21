@@ -33,12 +33,14 @@ json::json_doc & json::json_doc::operator=(const json_doc & doc){
 	}
 	_errors = doc._errors;
 	_root = new json_value(doc._root);
+	return *this;
 }
 
 json::json_doc & json::json_doc::operator=(json_doc && doc){
 	_errors = std::move(doc._errors);
 	_root = std::move(doc._root);
 	doc._root = nullptr;
+	return *this;
 }
 
 void json::json_doc::load(const char * data_string, bool is_file){
@@ -72,7 +74,7 @@ void json::json_doc::save(const char * data_string){
 	if (!_errors.empty()) {
 		return;
 	}
-	json_writer _writer;
+	json_writer _writer(_write_config);
 	_writer.write_to_file(*_root, data_string);
 }
 
@@ -80,16 +82,15 @@ void json::json_doc::save(std::ostream & stream){
 	if (!_errors.empty()) {
 		return;
 	}
-	json_writer _writer;
+	json_writer _writer(_write_config);
 	_writer.write_to_stream(*_root, stream);
-
 }
 
 std::string json::json_doc::to_string(){
 	if (!_errors.empty()) {
-		return;
+		 return "";
 	}
-	json_writer _writer;
+	json_writer _writer(_write_config);
 	std::string result;
 	_writer.write_to_string(*_root, result);
 	return result;
@@ -110,4 +111,12 @@ bool json::json_doc::has(const char * key){
 json::json_value * json::json_doc::get(const char * key){
 	json_value * res = _root->find(key);
 	return res;
+}
+
+json::write_config & json::json_doc::get_write_config(){
+	return _write_config;
+}
+
+void json::json_doc::set_write_config(write_config conf){
+	_write_config = conf;
 }

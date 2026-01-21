@@ -17,8 +17,12 @@ int main() {
 
 	json_doc doc; 
 	doc.load("test.json", true);
+	json_value * val = doc.root();
 
-
+	for (size_t i = 0; i < 15000; ++i ) {
+		val->add(std::to_string(i), json_value((double)i));
+	}
+	doc.save("test.json");
 
 	return 0;
 }

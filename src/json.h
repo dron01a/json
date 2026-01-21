@@ -56,10 +56,15 @@ namespace json {
 		// возвращает все элементы по данному ключу
 	//	std::vector<json_value*> select(const char * key);
 
+		// возвращает текущюю конфигурацию записи в файл
+		write_config & get_write_config();
+		void set_write_config(write_config conf);
+		
+
 	private:
 		std::vector<error> _errors; // вектор с ошибками
 		json_value * _root; // корневой элемент 
-
+		write_config _write_config = compact(); // конфигурация записи
 	};
 
 };
