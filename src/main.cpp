@@ -19,10 +19,17 @@ int main() {
 	doc.load("test.json", true);
 	json_value * val = doc.root();
 
-	for (size_t i = 0; i < 15000; ++i ) {
+	/*for (size_t i = 0; i < 15000; ++i ) {
 		val->add(std::to_string(i), json_value((double)i));
-	}
-	doc.save("test.json");
+	
+	}*/
+
+	jv_pointer p = val->find("n");
+
+	json_pointer_array res = val->select("string");
+
+	//doc.save("test.json");
 
 	return 0;
 }
+

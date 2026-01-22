@@ -142,12 +142,12 @@ void json::json_value::as_object(json_object object) {
 	object_data = new json_object(object);
 }
 
-json::json_value * json::json_value::find(const std::string & name) {
+json::jv_pointer json::json_value::find(const std::string & name) {
 	return find(name.c_str());
 }
 
-json::json_value * json::json_value::find(const char * name) {
-	json_value * result = nullptr;
+json::jv_pointer json::json_value::find(const char * name) {
+	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_array:
 		result = find_in_array(name);
@@ -159,8 +159,28 @@ json::json_value * json::json_value::find(const char * name) {
 	return result;
 }
 
-json::json_value * json::json_value::add(const json_value & val) {
-	json_value * result = nullptr;
+json::json_pointer_array json::json_value::select(const std::string & key){
+	return select(key.c_str());
+}
+
+json::json_pointer_array json::json_value::select(const char * key){
+	json_pointer_array result;
+	switch (_type) {
+	case json::value_type::_array:
+		result = select_in_array(key);
+		break;
+	case json::value_type::_object:
+		result = select_in_object(key);
+		break;
+	}
+	return result;
+}
+
+json::jv_pointer json::json_value::add(const json_value & val) {
+	if (_type != value_type::_array) {
+		return nullptr;
+	}
+	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_array:
 		array_data->push_back(val);
@@ -170,8 +190,11 @@ json::json_value * json::json_value::add(const json_value & val) {
 	return result;
 }
 
-json::json_value * json::json_value::add(json_value && val) {
-	json_value * result = nullptr;
+json::jv_pointer json::json_value::add(json_value && val) {
+	if (_type != value_type::_array) {
+		return nullptr;
+	}
+	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_array:
 		array_data->push_back(std::move(val));
@@ -181,8 +204,11 @@ json::json_value * json::json_value::add(json_value && val) {
 	return result;
 }
 
-json::json_value * json::json_value::add(const char * name, const json_value & val) {
-	json_value * result = nullptr;
+json::jv_pointer json::json_value::add(const char * name, const json_value & val) {
+	if (_type != value_type::_object) {
+		return nullptr;
+	}
+	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_object:
 		object_data->insert_or_assign(name, val);
@@ -196,8 +222,11 @@ json::json_value * json::json_value::add(const char * name, const json_value & v
 	return result;
 }
 
-json::json_value * json::json_value::add(const char * name, json_value && val) {
-	json_value * result = nullptr;
+json::jv_pointer json::json_value::add(const char * name, json_value && val) {
+	if (_type != value_type::_object) {
+		return nullptr;
+	}
+	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_object:
 		object_data->insert_or_assign(name, std::move(val));
@@ -211,12 +240,56 @@ json::json_value * json::json_value::add(const char * name, json_value && val) {
 	return result;
 }
 
-json::json_value * json::json_value::add(const std::string & name, const json_value & val) {
+json::jv_pointer json::json_value::add(const std::string & name, const json_value & val) {
 	return add(name.c_str(), val);
 }
 
-json::json_value * json::json_value::add(const std::string & name, json_value && val) {
+json::jv_pointer json::json_value::add(const std::string & name, json_value && val) {
 	return add(name.c_str(), std::move(val));
+}
+
+void json::json_value::remove(const char * key){
+	if (_type != value_type::_object) {
+		return;
+	}
+	auto target = object_data->find(key);
+	if (target != object_data->end()) {
+		object_data->erase(target);
+	}
+}
+
+void json::json_value::remove(const std::string & key){
+	remove(key.c_str());
+}
+
+void json::json_value::remove(size_t num){
+	if (_type != value_type::_array || num < 0) {
+		return;
+	}
+	if (num > array_data->size()) {
+		return;
+	}
+	array_data->erase(array_data->begin() + num);
+}
+
+void json::json_value::clear(){
+	clear_data();
+}
+
+json::json_value json::json_value::extract(const char * key){
+	if (_type != value_type::_object) {
+		return;
+	}
+	auto target = object_data->find(key);
+	json_value res = std::move(target->second);
+	if (target != object_data->end()) {
+		object_data->erase(target);
+	}
+	return res;
+}
+
+json::json_value json::json_value::extract(const std::string & key){
+	return extract(key.c_str());
 }
 
 json::value_type json::json_value::type() const {
@@ -225,6 +298,52 @@ json::value_type json::json_value::type() const {
 
 void json::json_value::type(value_type _t) {
 	_type = _t;
+}
+
+bool json::json_value::is_null() const {
+	return _type == value_type::_null;
+}
+
+bool json::json_value::is_bool() const {
+	return _type == value_type::_bool;
+}
+
+bool json::json_value::is_number() const {
+	return _type == value_type::_number;
+}
+
+bool json::json_value::is_string() const {
+	return _type == value_type::_string;
+}
+
+bool json::json_value::is_array() const {
+	return _type == value_type::_array;
+}
+
+bool json::json_value::is_object() const {
+	return _type == value_type::_object;
+}
+
+size_t json::json_value::item_count(){
+	size_t count = 0;
+	switch (_type){
+	case value_type::_null:
+	case value_type::_number:
+	case value_type::_bool:
+	case value_type::_string:
+		return 1;
+	case value_type::_array:
+		for (size_t i = 0; i < array_data->size(); ++i) {
+			count += 1 + array_data->operator[](i).item_count();
+		}
+		break;
+	case value_type::_object:
+		for (auto it = object_data->begin(); it != object_data->end(); ++it) {
+			count += 1 + it->second.item_count();
+		}
+		break;
+	}
+	return count;
 }
 
 void json::json_value::clear_data() {
@@ -291,17 +410,20 @@ void json::json_value::move_data(json_value && val) {
 	}
 }
 
-json::json_value * json::json_value::find_in_array(const char * name) {
-	json::json_value * _result = nullptr;
+json::jv_pointer json::json_value::find_impl(json_value & val, const char * name){
+	switch (val._type) {
+	case json::value_type::_array:
+		return val.find_in_array(name);
+	case json::value_type::_object:
+		return val.find_in_object(name);
+	}
+	return nullptr;
+}
+
+json::jv_pointer json::json_value::find_in_array(const char * name) {
+	json::jv_pointer _result = nullptr;
 	for (size_t _i = 0; _i < array_data->size(); ++_i) {
-		switch (array_data->operator[](_i)._type) {
-		case json::value_type::_array:
-			_result = array_data->operator[](_i).find_in_array(name);
-			break;
-		case json::value_type::_object:
-			_result = array_data->operator[](_i).find_in_object(name);
-			break;
-		}
+		_result = find_impl(array_data->operator[](_i), name);
 		if (_result) {
 			break;
 		}
@@ -309,25 +431,53 @@ json::json_value * json::json_value::find_in_array(const char * name) {
 	return _result;
 }
 
-json::json_value * json::json_value::find_in_object(const char * name) {
-	json::json_value * _result = nullptr;
+json::jv_pointer json::json_value::find_in_object(const char * name) {
+	json::jv_pointer _result = nullptr;
 	if (object_data->count(std::string(name)) != 0) {
 		_result = &object_data->operator[](name);
 	}
 	if (!_result) {
 		for (auto it = object_data->begin(); it != object_data->end(); ++it) {
-			switch (it->second._type) {
-			case json::value_type::_array:
-				_result = it->second.find_in_array(name);
-				break;
-			case json::value_type::_object:
-				_result = it->second.find_in_object(name);
-				break;
-			}
+			_result = find_impl(it->second, name);
 			if (_result) {
 				break;
 			}
 		}
+	}
+	return _result;
+}
+
+void json::json_value::select_impl(json_pointer_array & res, json_pointer_array & sub, json_value & val, const char * name){
+	switch (val._type) {
+	case json::value_type::_array:
+		sub = val.select_in_array(name);
+		break;
+	case json::value_type::_object:
+		sub = val.select_in_object(name);
+		break;
+	}
+	if (sub.size() != 0) {
+		res.insert(res.end(), sub.begin(), sub.end());
+	}
+}
+
+json::json_pointer_array json::json_value::select_in_array(const char * name){
+	json_pointer_array _result;
+	json_pointer_array _sub_result;
+	for (size_t _i = 0; _i < array_data->size(); ++_i) {
+		select_impl(_result, _sub_result, array_data->operator[](_i), name);
+	}
+	return _result;
+}
+
+json::json_pointer_array json::json_value::select_in_object(const char * name){
+	json_pointer_array _result;
+	json_pointer_array _sub_result;
+	if (object_data->count(std::string(name)) != 0) {
+		_result.push_back(&object_data->operator[](name));
+	}
+	for (auto it = object_data->begin(); it != object_data->end(); ++it) {
+		select_impl(_result, _sub_result, it->second, name);
 	}
 	return _result;
 }
