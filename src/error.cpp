@@ -116,6 +116,9 @@ std::string json::to_string(error & err){
 	case error_type::_invalid_array_value:
 		res += INVALID_ARRAY_VALUE;
 		break;
+	case error_type::_is_not_object_iterator:
+		res += IS_NOT_OBJ_ITR;
+		break;
 	}
 	res += "\n";
 	return res;

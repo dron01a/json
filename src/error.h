@@ -24,6 +24,8 @@
 #define INVALID_OBJECT "ошибка обработки json-объекта"
 #define INVALID_ARRAY_VALUE "ошибка обработки члена json-массива"
 
+#define IS_NOT_OBJ_ITR "итератор не для объекта"
+
 #endif // ! RUS_ERROR_MESSAGE
 
 #ifdef  ENG_ERROR_MESSAGE
@@ -68,6 +70,8 @@ namespace json {
 		_invalid_object,
 		_invalid_array_value,
 		_parse_error,
+		
+		_is_not_object_iterator
 	};
 
 	// структура ошибки

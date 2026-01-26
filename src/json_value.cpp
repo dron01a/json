@@ -1,5 +1,234 @@
 #include "json_value.h"
 
+
+json::json_value_iterator::json_value_iterator() : _type(_iterator_type::_empty) {}
+
+json::json_value_iterator::json_value_iterator(array_iterator & arrit) : _type(_iterator_type::_array) {
+	_data.arr_it = arrit;
+}
+
+json::json_value_iterator::json_value_iterator(object_iterator & objit) : _type(_iterator_type::_object) {
+	_data.object_iter = objit;
+}
+
+json::json_value_iterator::json_value_iterator(const_array_iterator & arrit) : _type(_iterator_type::c_array) {
+	_data.const_arr_it = arrit;
+}
+
+json::json_value_iterator::json_value_iterator(const_object_iterator & objit) : _type(_iterator_type::c_object) {
+	_data.const_object_iter = objit;
+}
+
+json::json_value_iterator::json_value_iterator(const json_value_iterator & other) : _type(other._type) {
+	switch (other._type) {
+	case _iterator_type::_array:
+		_data.arr_it = other._data.arr_it;
+		break;
+	case _iterator_type::c_array:
+		_data.const_arr_it = other._data.const_arr_it;
+		break;
+	case _iterator_type::_object:
+		_data.object_iter = other._data.object_iter;
+		break;
+	case _iterator_type::c_object:
+		_data.const_object_iter = other._data.const_object_iter;
+		break;
+	}
+}
+
+json::json_value_iterator::~json_value_iterator() {}
+
+json::json_value_iterator & json::json_value_iterator::operator++() {
+	switch (_type) {
+	case _iterator_type::_array:
+		_data.arr_it++;
+		break;
+	case _iterator_type::c_array:
+		_data.const_arr_it++;
+		break;
+	case _iterator_type::_object:
+		_data.object_iter++;
+		break;
+	case _iterator_type::c_object:
+		_data.const_object_iter++;
+		break;
+	}
+	return *this;
+}
+
+json::json_value_iterator & json::json_value_iterator::operator++(int) {
+	json_value_iterator temp = *this;
+	++(*this);
+	return temp;
+}
+
+json::json_value_iterator & json::json_value_iterator::operator--() {
+	switch (_type) {
+	case _iterator_type::_array:
+		_data.arr_it--;
+		break;
+	case _iterator_type::c_array:
+		_data.const_arr_it--;
+		break;
+	case _iterator_type::_object:
+		_data.object_iter--;
+		break;
+	case _iterator_type::c_object:
+		_data.const_object_iter--;
+		break;
+	}
+	return *this;
+}
+
+json::json_value_iterator & json::json_value_iterator::operator--(int) {
+	json_value_iterator temp = *this;
+	--(*this);
+	return temp;
+}
+
+json::jv_reference json::json_value_iterator::operator*() {
+	switch (_type) {
+	case _iterator_type::_array:
+		return *_data.arr_it;
+	case _iterator_type::c_array:
+		return const_cast<jv_reference>(*_data.const_arr_it);
+	case _iterator_type::_object:
+		return _data.object_iter->second;
+	case _iterator_type::c_object:
+		return const_cast<jv_reference>(_data.const_object_iter->second);
+	}
+}
+
+const json::jv_reference json::json_value_iterator::operator*() const {
+	return const_cast<jv_reference>(this->operator*());
+}
+
+json::jv_pointer json::json_value_iterator::operator->() {
+	return &(operator*());
+}
+
+const json::jv_pointer json::json_value_iterator::operator->() const {
+	return &(operator*());
+}
+
+bool json::json_value_iterator::operator==(const json_value_iterator & other) const {
+	if (_type != other._type) {
+		return false;
+	}
+	switch (_type) {
+	case json::json_value_iterator::_iterator_type::_empty:
+		return true;
+	case json::json_value_iterator::_iterator_type::_array:
+		return this->_data.arr_it == other._data.arr_it;
+	case json::json_value_iterator::_iterator_type::_object:
+		return this->_data.object_iter == other._data.object_iter;
+	case json::json_value_iterator::_iterator_type::c_array:
+		return this->_data.const_arr_it == other._data.const_arr_it;
+	case json::json_value_iterator::_iterator_type::c_object:
+		return this->_data.const_object_iter == other._data.const_object_iter;
+	}
+}
+
+bool json::json_value_iterator::operator!=(const json_value_iterator & other) const {
+	return !(*this == other);
+}
+
+std::string json::json_value_iterator::key() const {
+	switch (_type) {
+	case json::json_value_iterator::_iterator_type::_object:
+		return _data.object_iter->first;
+	case json::json_value_iterator::_iterator_type::c_object:
+		return _data.const_object_iter->first;
+	default:
+		return ""; // вставить выброс ошибок
+	}
+}
+
+json::jv_reference json::json_value_iterator::value() {
+	switch (_type) {
+	case json::json_value_iterator::_iterator_type::_array:
+		return *_data.arr_it;
+	case json::json_value_iterator::_iterator_type::_object:
+		return _data.object_iter->second;
+	default:
+		break; // вставить выброс ошибок
+	}
+}
+
+const json::jv_reference json::json_value_iterator::value() const {
+	switch (_type) {
+	case _iterator_type::_array:
+		return *_data.arr_it;
+	case _iterator_type::c_array:
+		return const_cast<jv_reference>(*_data.const_arr_it);
+	case _iterator_type::_object:
+		return _data.object_iter->second;
+	case _iterator_type::c_object:
+		return const_cast<jv_reference>(_data.const_object_iter->second);
+	}
+	throw; // вставить выброс ошибок
+}
+
+bool json::json_value_iterator::is_array_iterator() const {
+	return _type == _iterator_type::_array;
+}
+
+bool json::json_value_iterator::is_const_array_iterator() const {
+	return _type == _iterator_type::c_array;
+}
+
+bool json::json_value_iterator::is_object_iterator() const {
+	return _type == _iterator_type::_object;
+}
+
+bool json::json_value_iterator::is_const_object_iterator() const {
+	return _type == _iterator_type::c_object;
+}
+
+json::json_value_iterator::array_iterator json::json_value_iterator::get_array_iterator() const {
+	if (_type == _iterator_type::_array) {
+		return _data.arr_it;
+	}
+	throw; // ошибка
+}
+
+json::json_value_iterator::const_array_iterator json::json_value_iterator::get_const_array_iterator() const {
+	if (_type == _iterator_type::c_array) {
+		return _data.const_arr_it;
+	}
+	throw; // ошибка
+}
+
+json::json_value_iterator::object_iterator json::json_value_iterator::get_object_iterator() const {
+	if (_type == _iterator_type::_object) {
+		return _data.object_iter;
+	}
+	throw; // ошибка
+}
+
+json::json_value_iterator::const_object_iterator json::json_value_iterator::get_const_object_iterator() const {
+	if (_type == _iterator_type::c_object) {
+		return _data.const_object_iter;
+	}
+	throw; // ошибка
+}
+
+json::json_value_iterator::_iterator_type json::json_value_iterator::type() const {
+	return _type;
+}
+
+bool json::json_value_iterator::valid() const {
+	return _type != _iterator_type::_empty;
+}
+
+bool json::json_value_iterator::is_const() const {
+	return _type == _iterator_type::c_array || _type == _iterator_type::c_object;
+}
+
+bool json::json_value_iterator::is_mutable() const {
+	return _type == _iterator_type::_array || _type == _iterator_type::_object;
+}
+
 json::json_value::json_value() : _type(value_type::_null) {}
 
 json::json_value::json_value(bool data) {
@@ -278,7 +507,8 @@ void json::json_value::clear(){
 
 json::json_value json::json_value::extract(const char * key){
 	if (_type != value_type::_object) {
-		return;
+		throw; // ошибка
+		//return;
 	}
 	auto target = object_data->find(key);
 	json_value res = std::move(target->second);
@@ -344,6 +574,58 @@ size_t json::json_value::item_count(){
 		break;
 	}
 	return count;
+}
+
+json::json_value_iterator json::json_value::begin(){
+	switch (_type){
+	case json::value_type::_array:
+		return json_value_iterator(array_data->begin());
+	case json::value_type::_object:
+		return json_value_iterator(object_data->begin());
+	default:
+		break; // вставить обработчик ошибки
+	}
+}
+
+json::json_value_iterator json::json_value::begin() const {
+	return cbegin();
+}
+
+json::json_value_iterator json::json_value::cbegin() const{
+	switch (_type) {
+	case json::value_type::_array:
+		return json_value_iterator(array_data->cbegin());
+	case json::value_type::_object:
+		return json_value_iterator(object_data->cbegin());
+	default:
+		break; // вставить обработчик ошибки
+	}
+}
+
+json::json_value_iterator json::json_value::end(){
+	switch (_type) {
+	case json::value_type::_array:
+		return json_value_iterator(array_data->end());
+	case json::value_type::_object:
+		return json_value_iterator(object_data->end());
+	default:
+		break; // вставить обработчик ошибки
+	}
+}
+
+json::json_value_iterator json::json_value::end() const{
+	return cend();
+}
+
+json::json_value_iterator json::json_value::cend() const {
+	switch (_type) {
+	case json::value_type::_array:
+		return json_value_iterator(array_data->cend());
+	case json::value_type::_object:
+		return json_value_iterator(object_data->cend());
+	default:
+		break; // вставить обработчик ошибки
+	}
 }
 
 void json::json_value::clear_data() {

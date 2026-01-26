@@ -24,6 +24,10 @@ int main() {
 	
 	}*/
 
+	for (auto it = val->begin(); it != val->end(); it++) {
+		std::cout << it.key() << std::endl;
+	}
+
 	jv_pointer p = val->find("n");
 
 	json_pointer_array res = val->select("string");
