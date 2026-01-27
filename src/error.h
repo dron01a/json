@@ -34,7 +34,7 @@
 #define FILE_NOT_FOUND "file not found"
 #define STRING_IS_EMPTY "string is empty"
 #define STREAM_ERROR "stream is bad"
-#define ERROR_TOKEN "error token"
+#define ERROR_TOKEN "base_error token"
 #define INVALID_NUM "invalid number"
 #define INVALID_NUM_FORMAT "invalid number format"
 #define INVALID_STR "invalid string"
@@ -42,10 +42,10 @@
 #define INVALID_UNICODE "invalid unicode string"
 #define INVALID_UNICODE_CHAR "invalid unicode char"
 #define INVALID_UNICODE_LP "invalid unicode low pair"
-#define LITERAL_ERROR "error from read key-word"
-#define INVALID_VAL "json-value processing error"
-#define INVALID_OBJECT "json-object processing error"
-#define INVALID_ARRAY_VALUE "json-array value processing error"
+#define LITERAL_ERROR "base_error from read key-word"
+#define INVALID_VAL "json-value processing base_error"
+#define INVALID_OBJECT "json-object processing base_error"
+#define INVALID_ARRAY_VALUE "json-array value processing base_error"
 
 #endif // ! ENG_ERROR_MESSAGE
 
@@ -75,17 +75,17 @@ namespace json {
 	};
 
 	// структура ошибки
-	struct error {
-		error() {}
-		error(size_t _c, size_t _s, error_type _e) : col(_c), str(_s), type(_e) {}
+	struct base_error {
+		base_error() {}
+		base_error(size_t _c, size_t _s, error_type _e) : col(_c), str(_s), type(_e) {}
 		size_t col = 0, str = 0;
 		error_type type = error_type::_none;
 	};
 
 	// для вывода ошибок
-	std::ostream & operator<<(std::ostream & stream, json::error & err);
+	std::ostream & operator<<(std::ostream & stream, json::base_error & err);
 
-	std::string to_string(error & err);
+	std::string to_string(base_error & err);
 }
 
 

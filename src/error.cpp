@@ -1,6 +1,6 @@
 #include "error.h"
 
-std::ostream & json::operator<<(std::ostream & stream, json::error & err){
+std::ostream & json::operator<<(std::ostream & stream, json::base_error & err){
 #ifdef RUS_ERROR_MESSAGE 
 	stream << "Строка : " << err.str << std::endl << "Столбец : " << err.col << std::endl << "Сообщение : ";
 #endif
@@ -58,7 +58,7 @@ std::ostream & json::operator<<(std::ostream & stream, json::error & err){
 	return stream;
 }
 
-std::string json::to_string(error & err){
+std::string json::to_string(base_error & err){
 	std::string res;
 #ifdef RUS_ERROR_MESSAGE 
 	res += "Строка : " + std::to_string(err.str) 

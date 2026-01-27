@@ -1,6 +1,5 @@
 #include "json_value.h"
 
-
 json::json_value_iterator::json_value_iterator() : _type(_iterator_type::_empty) {}
 
 json::json_value_iterator::json_value_iterator(array_iterator & arrit) : _type(_iterator_type::_array) {
