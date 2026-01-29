@@ -1,7 +1,7 @@
 #include "error.h"
 
-json::base_error::base_error(size_t line, size_t col, const std::string & message)
-	: _line(line), _col(col), _message(message){}
+json::base_error::base_error(error_category category, size_t line, size_t col, const std::string & message)
+	: _error_cat(category), _line(line), _col(col), _message(message){}
 
 size_t json::base_error::line() const{
 	return _line;
@@ -9,6 +9,10 @@ size_t json::base_error::line() const{
 
 size_t json::base_error::column() const{
 	return _col;
+}
+
+json::error_category json::base_error::category() const{
+	return _error_cat;
 }
 
 const char * json::base_error::what() const noexcept {

@@ -17,13 +17,16 @@ namespace json {
 	// базовая структура ошибки
 	class base_error : public std::exception {
 	public: 
-		base_error(size_t line, size_t col, const std::string & message);
+		base_error(error_category category, size_t line, size_t col, const std::string & message);
 
 		// возращает линию ошибки 
 		size_t line() const;
 
 		// возвращает столбец ошибки
 		size_t column() const;
+
+		// возвращает категорию 
+		error_category category() const;
 
 		// возврат сообщения об ошибке
 		const char * what() const override ;
