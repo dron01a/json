@@ -7,21 +7,30 @@ namespace json {
 
 	namespace encodings {
 
-	/*	class encoding_error : base_error {
+		class encoding_error : public base_error {
 		public:
-
-			enum error_code {
+			enum class error_code { // коды ошибок
 				_invalid_string,
 				_invalid_escape,
+				_invalid_unicode_char,
+				_invalid_unicode_low_pair,
 			};
 
-		};*/
+			// конструктор 
+			encoding_error(error_code code, size_t line, size_t col);
+		private:
+
+			// формирование сообщения
+			std::string form_message(error_code code);
+
+			error_code code;
+		};
 
 		// интерфейс декодера
 		class i_decoder {
 		public:
 			virtual ~i_decoder() = default;
-			virtual std::string decode(json::io_base::i_input * _src) = 0;
+			virtual std::string decode(json::io_base::i_input * _src, size_t & line, size_t & col) = 0;
 		};
 
 		// интерфейс энкодера
@@ -37,10 +46,10 @@ namespace json {
 			class decoder : public i_decoder {
 			public:
 				explicit decoder() {};
-				std::string decode(json::io_base::i_input * _src);
+				std::string decode(json::io_base::i_input * _src, size_t & line, size_t & col);
 			private:
 				// функция для чтения юникода 
-				std::string read_unicode(json::io_base::i_input * _src);
+				std::string read_unicode(json::io_base::i_input * _src, size_t & line, size_t & col);
 				// добавляет utf8 сивол к строке
 				void append_utf8_char(std::string & _string, uint32_t code);
 			};
@@ -64,7 +73,7 @@ namespace json {
 			class decoder : public i_decoder {
 			public:
 				explicit decoder() {};
-				std::string decode(json::io_base::i_input * _src);
+				std::string decode(json::io_base::i_input * _src, size_t & line, size_t & col);
 			};
 
 			// энкодер ascii
