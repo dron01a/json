@@ -29,7 +29,7 @@ namespace json {
 		error_category category() const;
 
 		// возврат сообщения об ошибке
-		const char * what() const override ;
+		const char * what() const noexcept override;
 
 	private:
 

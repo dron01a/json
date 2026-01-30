@@ -28,7 +28,7 @@ namespace json {
 
 		// ввод из файла
 		class file_input : public i_input {
-
+		public:
 			// конструктор
 			explicit file_input(const std::string & file_name);
 			explicit file_input(const char * file_name);
@@ -55,7 +55,7 @@ namespace json {
 
 		// ввод из строки
 		class string_input : public i_input {
-
+		public:
 			// конструктор
 			explicit string_input(const std::string & string);
 			explicit string_input(const char * string);
@@ -81,6 +81,7 @@ namespace json {
 
 		// ввод из потока
 		class stream_input : public i_input {
+		public:
 			// конструктор
 			explicit stream_input(std::istream & stream);
 
@@ -107,6 +108,7 @@ namespace json {
 		class i_output {
 		public:
 			virtual ~i_output() = default;
+			virtual void out_data(char data) = 0;
 			virtual void out_data(const char * data) = 0;
 			virtual bool ready() = 0;
 		};
@@ -122,6 +124,7 @@ namespace json {
 
 			// запись данных
 			void out_data(const char * data);
+			void out_data(char data);
 
 			// проверка готовности 
 			bool ready();
@@ -137,6 +140,7 @@ namespace json {
 
 			// запись данных
 			void out_data(const char * data);
+			void out_data(char data);
 
 			// проверка готовности 
 			bool ready();
@@ -154,6 +158,7 @@ namespace json {
 
 			// запись данных
 			void out_data(const char * data);
+			void out_data(char data);
 
 			// проверка готовности 
 			bool ready();

@@ -113,6 +113,10 @@ void json::io_base::file_output::out_data(const char * data) {
 	_desc << data;
 }
 
+void json::io_base::file_output::out_data(char data){
+	_desc << data;
+}
+
 bool json::io_base::file_output::ready() {
 	return _desc.good();
 }
@@ -122,6 +126,10 @@ json::io_base::string_output::string_output(std::string & _data) {
 }
 
 void json::io_base::string_output::out_data(const char * data) {
+	*_desc += data;
+}
+
+void json::io_base::string_output::out_data(char data){
 	*_desc += data;
 }
 
@@ -138,6 +146,10 @@ json::io_base::stream_output::~stream_output() {
 }
 
 void json::io_base::stream_output::out_data(const char * data) {
+	*_desc << data;
+}
+
+void json::io_base::stream_output::out_data(char data) {
 	*_desc << data;
 }
 
