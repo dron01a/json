@@ -1,6 +1,9 @@
 #ifndef __DRON_JSON_ENCODING__
 #define __DRON_JSON_ENCODING__
 
+#include <memory>
+#include <vector>
+
 #include "io_base.h"
 
 namespace json {
@@ -30,7 +33,28 @@ namespace json {
 		class i_decoder {
 		public:
 			virtual ~i_decoder() = default;
-			virtual std::string decode(json::io_base::i_input * _src, size_t & line, size_t & col) = 0;
+
+			// получение следующего символа
+			virtual char32_t next_char() = 0;
+
+			// получение текущего символа
+			virtual char32_t current_char() = 0;
+
+			// посмотреть символ впереди
+			virtual char32_t peek_char() = 0;
+
+			// осчистка буфера 
+			virtual void clear_peek_buff() = 0;
+
+			// устанавливает и возвращает позицию
+			virtual void position(size_t pos) = 0;
+			virtual size_t position() = 0;
+
+			// отправляет символ в буфер
+			virtual void push_buff(char32_t c) = 0;
+
+			// возвращает флаг конца 
+			virtual bool eof() = 0;
 		};
 
 		// интерфейс энкодера
@@ -40,49 +64,45 @@ namespace json {
 			virtual void encode(json::io_base::i_output * _dest, const std::string & _string) = 0;
 		};
 
-		namespace utf8 {
+		// базовый декодер 
+		class base_decoder : public i_decoder {
+		public:
+			explicit base_decoder(std::unique_ptr<io_base::i_input> input);
+			virtual char32_t next_char() = 0;
+			char32_t current_char();
+			char32_t peek_char();
+			virtual void position(size_t pos) = 0;
+			size_t position();
+			void clear_peek_buff();
+			void push_buff(char32_t c);
+			bool eof();
+		protected:
+			char32_t _cur_char; // текущий сивол
+			std::vector<char32_t> _buff; // буфер для символов 
+			size_t _position; // позиция
+			bool _eof = false; // конец
+			std::unique_ptr<io_base::i_input> _input; // источник получения данных
+		};
 
-			// декодер utf8
-			class decoder : public i_decoder {
-			public:
-				explicit decoder() {};
-				std::string decode(json::io_base::i_input * _src, size_t & line, size_t & col);
-			private:
-				// функция для чтения юникода 
-				std::string read_unicode(json::io_base::i_input * _src, size_t & line, size_t & col);
-				// добавляет utf8 сивол к строке
-				void append_utf8_char(std::string & _string, uint32_t code);
-			};
-
-			// энкодер utf8
-			class encoder : public i_encoder {
-			public:
-				explicit encoder() {};
-				void encode(json::io_base::i_output * _dest, const std::string & _string);
-			private:
-				inline void append_hex_4(json::io_base::i_output * _dest, uint16_t value);
-				inline int get_utf8_len(unsigned char fb);
-				inline uint32_t parse_utf8(const std::string & str, size_t & pos, int len);
-			};
+		// декодер utf8
+		class utf8_decoder : public base_decoder {
+		public:
+			explicit utf8_decoder(std::unique_ptr<io_base::i_input> input);
+			char32_t next_char();
+			void position(size_t pos);
+		private:
+			char32_t read_impl();
+			bool skip_bom();
+			bool _bom = false; // наличие BOM
 
 		};
 
-		namespace ascii {
-
-			// декодер ascii
-			class decoder : public i_decoder {
-			public:
-				explicit decoder() {};
-				std::string decode(json::io_base::i_input * _src, size_t & line, size_t & col);
-			};
-
-			// энкодер ascii
-			class encoder : public i_encoder {
-			public:
-				explicit encoder() {};
-				void encode(json::io_base::i_output * _dest, const std::string & _string);
-			};
-
+		// декодер ascii
+		class ascii_decoder : public base_decoder {
+		public:
+			explicit ascii_decoder(std::unique_ptr<io_base::i_input> input);
+			char32_t next_char();
+			void position(size_t pos);
 		};
 
 	}
