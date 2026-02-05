@@ -14,24 +14,28 @@ json::io_base::file_input::~file_input() {
 	}
 }
 
-char json::io_base::file_input::next_char() {
+std::char_traits<char>::char_type json::io_base::file_input::next_char() {
 	cur_char = file.get();
 	if (file.eof()) {
-		cur_char = '\0';
+		cur_char = std::char_traits<char>::eof();
 	}
 	return cur_char;
 }
 
-char & json::io_base::file_input::last_char() {
+std::char_traits<char>::char_type json::io_base::file_input::last_char() {
 	return cur_char;
 }
 
-void json::io_base::file_input::step_back(int n) {
-	file.seekg(-n, std::ios::cur);
+void json::io_base::file_input::seek(int n) {
+	file.seekg(n, std::ios::cur);
 }
 
 bool json::io_base::file_input::ready() {
 	return file.good() && file.is_open();
+}
+
+bool json::io_base::file_input::eof(){
+	return file.eof();
 }
 
 json::io_base::string_input::string_input(const std::string & string) {
@@ -42,14 +46,17 @@ json::io_base::string_input::string_input(const char * string) {
 	str = string;
 }
 
-char json::io_base::string_input::next_char() {
+json::io_base::string_input::~string_input(){
+}
+
+std::char_traits<char>::char_type json::io_base::string_input::next_char() {
 	if (position < str.size()) {
 		return str[position++];
 	}
-	return '\0';
+	return std::char_traits<char>::eof();
 }
 
-char & json::io_base::string_input::last_char() {
+std::char_traits<char>::char_type json::io_base::string_input::last_char() {
 	if (position < str.size() && position > 0) {
 		return str[position - 1];
 	}
@@ -59,14 +66,18 @@ char & json::io_base::string_input::last_char() {
 	return str[str.size() - 1];
 }
 
-void json::io_base::string_input::step_back(int n) {
-	if (position - n >= 0) {
-		position -= n;
+void json::io_base::string_input::seek(int n) {
+	if (n <  str.size() - 1) {
+		position = n;
 	}
 }
 
 bool json::io_base::string_input::ready() {
 	return !str.empty() && position < str.size();
+}
+
+bool json::io_base::string_input::eof(){
+	return !(position < str.size());
 }
 
 json::io_base::stream_input::stream_input(std::istream & stream) {
@@ -77,24 +88,28 @@ json::io_base::stream_input::~stream_input() {
 	stream = nullptr;
 }
 
-char json::io_base::stream_input::next_char() {
+std::char_traits<char>::char_type json::io_base::stream_input::next_char() {
 	*stream >> cur_char;
 	if (stream->eof()) {
-		cur_char = '\0';
+		cur_char = std::char_traits<char>::eof();
 	}
 	return cur_char;
 }
 
-char & json::io_base::stream_input::last_char() {
+std::char_traits<char>::char_type json::io_base::stream_input::last_char() {
 	return cur_char;
 }
 
-void json::io_base::stream_input::step_back(int n) {
-	stream->seekg(-n, std::ios::cur);
+void json::io_base::stream_input::seek(int n) {
+	stream->seekg(n, std::ios::cur);
 }
 
 bool json::io_base::stream_input::ready() {
 	return stream->good();
+}
+
+bool json::io_base::stream_input::eof(){
+	return stream->eof();
 }
 
 json::io_base::file_output::file_output(const std::string & file_name) {

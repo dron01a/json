@@ -13,6 +13,9 @@ namespace json {
 
 		// класс ошибки ввода-вывода
 		class io_error : public base_error {
+		public:
+
+		private:
 
 		};
 
@@ -20,10 +23,11 @@ namespace json {
 		class i_input {
 		public:
 			virtual ~i_input() = default;
-			virtual char next_char() = 0;
-			virtual char & last_char() = 0;
-			virtual void step_back(int n) = 0;
+			virtual std::char_traits<char>::char_type next_char() = 0;
+			virtual std::char_traits<char>::char_type last_char() = 0;
+			virtual void seek(int n) = 0;
 			virtual bool ready() = 0;
+			virtual bool eof() = 0;
 		};
 
 		// ввод из файла
@@ -37,16 +41,19 @@ namespace json {
 			~file_input();
 
 			// возвращает следующий символ
-			char next_char();
+			std::char_traits<char>::char_type next_char();
 
 			// возвращает предыдущий символ
-			char & last_char();
+			std::char_traits<char>::char_type last_char();
 
 			// делает шаг назад
-			void step_back(int n);
+			void seek(int n);
 
 			// проверка на готовность к работе
 			bool ready();
+
+			// конец файла
+			bool eof();
 
 		private:
 			std::ifstream file;
@@ -61,19 +68,23 @@ namespace json {
 			explicit string_input(const char * string);
 
 			// деструктор
-			~string_input() {};
+			~string_input();
 
 			// возвращает предыдущий символ
-			char next_char();
+			std::char_traits<char>::char_type next_char();
 
 			// возвращает текущий символ
-			char & last_char();
+			std::char_traits<char>::char_type last_char();
 
-			// делает шаг назад
-			void step_back(int n);
+			// устанавливает позицию
+			void seek(int n);
 
 			// проверка на готовность к работе
 			bool ready();
+
+			// конец файла
+			bool eof();
+
 		private:
 			size_t position = 0; // текущая позиция 
 			std::string str; // строка с json
@@ -89,16 +100,20 @@ namespace json {
 			~stream_input();
 
 			// возвращает предыдущий символ
-			char next_char();
+			std::char_traits<char>::char_type next_char();
 
 			// возвращает текущий символ
-			char & last_char();
+			std::char_traits<char>::char_type last_char();
 
 			// делает шаг назад
-			void step_back(int n);
+			void seek(int n);
 
 			// проверка на готовность к работе
 			bool ready();
+
+			// конец файла
+			bool eof();
+
 		private:
 			std::istream * stream;
 			char cur_char;
