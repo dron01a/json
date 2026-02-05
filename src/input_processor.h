@@ -9,24 +9,87 @@ namespace json {
 
 	namespace io {
 
-		// базовые обработчики
-		namespace basic_processors {
+		// класс ошибки получаемой информации
+		class input_error : public base_error {
+		public:
 
-			// строковый обработчик
-			struct string_proc{
-				std::string operator()(json::io_base::i_input * src, json::encodings::i_decoder * decoder, size_t & line, size_t & col);
+			// коды ошибок
+			enum class error_code {
+				_error_token = 0,
+				_invalid_string,
+				_invalid_number,
+				_invalid_number_format,
+				_invalid_escape,
+				_invalid_unicode_char,
+				_invalid_unicode_low_pair,
+				_literal_error,
 			};
 
-			// числовой обработчик
-			struct digit_proc {
-				double operator()(json::io_base::i_input * _src, size_t & col);
-			};
+			input_error(error_code code, size_t & line, size_t & col);
 
-			// обработчик литералов
-			struct literal_proc {
-				bool operator()(json::io_base::i_input * _src, size_t & col, std::string liter);
-			};
+		private:
+			std::string form_message(error_code code);
+		};
 
+		// типы токенов
+		enum class token_type {
+			_none = 0,
+			_space, // в том числе и табуляции
+			_colon, // : 
+			_comma, // , 
+			_open_curly_brt, // {
+			_close_curly_brt, // }
+			_open_square_brt, // [
+			_close_square_brt, // ]
+			_escape_begin, // \ 
+			_mark, // "
+			_string, // буквы и тд
+			_number, // 0 - 9, числа  
+			_unknown, // неизвестный символ
+			_null, // ничего, 
+			_true,
+			_false,
+			_key,
+			_end // конец данных
+		};
+
+		// класс токена
+		class token {
+		public:
+			// конструтор класса
+			token();
+			token(const token & other);
+			token(token_type t);
+			token(double data);
+			token(const char * data);
+			token(const std::string & data);
+
+			// деструктор
+			~token();
+
+			token & operator=(const token & other);
+
+			// возврат строковых данных 
+			std::string string_data() const;
+
+			// возврат числовых данных 
+			double double_data() const;
+
+			token_type type() const;
+			void type(token_type t);
+		private:
+
+			// копирование данных
+			void copy_data(const token & other);
+
+			//union для хранения данных 
+			union data {
+				double _double_data;
+				std::string _string_data;
+				data() : _double_data(0) {}
+				~data() {};
+			} _data;
+			token_type _type; // тип токена
 		};
 
 		// интерфейс для обработчика входа
@@ -34,60 +97,60 @@ namespace json {
 		public:
 			virtual ~i_input_processor() = default;
 			
-			// обработка строки 
-			virtual std::string string_processing() = 0;
-
-			// обработка строки 
-			virtual double digit_processing() = 0;
-
-			// обработка литералов
-			virtual bool literal_processing(std::string liter) = 0;
+			// получение токена
+			virtual token next_token() = 0;
 
 		};
 
-		// класс обработки входной информации 
-		template <typename string_processor, 
-				  typename digit_processor, 
-				  typename literal_processor>
-		class input_processor : public i_input_processor {
-		private:
-			json::io_base::i_input * _src;
-			json::encodings::i_decoder * _decoder;
-			size_t * _line;
-			size_t * _col;
-			string_processor sp; 
-			digit_processor dp;
-			literal_processor lp;
+		// класс с базовым функционалом
+		class base_input_processor {
 		public:
-			// конструктор класса
-			explicit input_processor(json::io_base::i_input * src, json::encodings::i_decoder * decoder, size_t & line, size_t & col){
-				_line =& line;
-				_col =& col;
-				_src = src;
-				_decoder = decoder;
-			}
+			// конструтор класса
+			base_input_processor(size_t& line, size_t& col);
 
-			~input_processor() {}
+		protected:
 
-			// обработка строки 
-			std::string string_processing() {
-				return sp(_src, _decoder, *_line, *_col);
-			}
+			// вспомогательные методы
+			
+			// обработка строки
+			token parse_string(std::unique_ptr<encodings::i_decoder> & _decoder);
+			
+			// обработка escape последовательности
+			std::string parse_escape(std::unique_ptr<encodings::i_decoder> & _decoder);
 
-			// обработка строки 
-			double digit_processing() {
-				return dp(_src, *_col);
-			}
-		
-			// обработка литералов
-			bool literal_processing(std::string liter) {
-				return lp(_src, *_col, liter);
-			}
+			// обработка unicode последовательности
+			std::string parse_unicode(std::unique_ptr<encodings::i_decoder> & _decoder);
+
+			// обработка unicode пары
+			uint32_t parse_unicode_pair(std::unique_ptr<encodings::i_decoder> & _decoder);
+
+			// обработка числа 
+			token parse_number(std::unique_ptr<encodings::i_decoder> & _decoder);
+
+			// обработка числа 
+			bool parse_literal(std::unique_ptr<encodings::i_decoder> & _decoder, const char * literal_str, size_t len);
+
+			// пропуск пробелов и табуляций
+			void skip_space(std::unique_ptr<encodings::i_decoder> & _decoder);
+
+			// пропуск коментариев
+			void skip_coments(std::unique_ptr<encodings::i_decoder> & _decoder);
+
+			// ссылки на линию и столбец
+			size_t & _line;
+			size_t & _col;
+
 		};
 
-		using simple_input_processor = input_processor<basic_processors::string_proc,
-												       basic_processors::digit_proc,
-													   basic_processors::literal_proc>;
+		// класс обработки входа для JSON
+		class json_input_processor : public base_input_processor {
+		public:
+			//конструктор класса
+			json_input_processor(size_t& line, size_t& col);
+
+			// получение токена
+			token next_token(std::unique_ptr<encodings::i_decoder> _decoder);
+		};
 
 	};
 
