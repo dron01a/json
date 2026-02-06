@@ -1,31 +1,6 @@
 #include "encoding.h"
 
-json::encodings::encoding_error::encoding_error(error_code code, size_t line, size_t col) :
-	base_error(error_category::encoding_error, line, col, form_message(code))
-{
-	this->code = code;
-}
-
-std::string json::encodings::encoding_error::form_message(error_code code) {
-	std::string result;
-	switch (code){
-	case json::encodings::encoding_error::error_code::_invalid_string:
-		result += "invalid string";
-		break;
-	case json::encodings::encoding_error::error_code::_invalid_escape:
-		result += "escape processing error";
-		break;
-	case json::encodings::encoding_error::error_code::_invalid_unicode_char:
-		result += "unicode char processing error";
-		break;
-	case json::encodings::encoding_error::error_code::_invalid_unicode_low_pair:
-		result += "unicode low pair processing error";
-		break;
-	}
-	return result;
-}
-
-json::encodings::base_decoder::base_decoder(std::unique_ptr<io_base::i_input> input) : _input(std::move(input)) {
+json::encodings::base_decoder::base_decoder(io_base::i_input_ptr_ref input) : _input(input) {
 	_position = 0;
 }
 
@@ -62,8 +37,7 @@ bool json::encodings::base_decoder::eof() {
 }
 
 
-json::encodings::utf8_decoder::utf8_decoder(std::unique_ptr<io_base::i_input> input) 
-	: base_decoder(std::move(input)) {
+json::encodings::utf8_decoder::utf8_decoder(io_base::i_input_ptr_ref input) : base_decoder(input) {
 	_bom = skip_bom();
 }
 
@@ -112,7 +86,7 @@ char32_t json::encodings::utf8_decoder::read_impl(){
 	for (size_t i = 1; i < lenght; ++i) {
 		_c = _input->next_char();
 		if (_c == std::char_traits<char>::eof()) {
-			throw encoding_error(encoding_error::error_code::_invalid_unicode_char, 0, 0); // числа!!!!
+			return std::char_traits<char>::eof();
 		}
 		bytes[i] = static_cast<uint8_t>(_c);
 	}
@@ -167,10 +141,7 @@ bool json::encodings::utf8_decoder::skip_bom(){
 	return false;
 }
 
-json::encodings::ascii_decoder::ascii_decoder(std::unique_ptr<io_base::i_input> input) 
-	: base_decoder(std::move(input)) {
-	_position = 0;
-}
+json::encodings::ascii_decoder::ascii_decoder(io_base::i_input_ptr_ref input) : base_decoder(input) {}
 
 char32_t json::encodings::ascii_decoder::next_char(){
 	if (!_buff.empty()) {

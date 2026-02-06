@@ -1,7 +1,6 @@
 #ifndef __DRON_JSON_ENCODING__
 #define __DRON_JSON_ENCODING__
 
-#include <memory>
 #include <vector>
 
 #include "io_base.h"
@@ -9,25 +8,6 @@
 namespace json {
 
 	namespace encodings {
-
-		class encoding_error : public base_error {
-		public:
-			enum class error_code { // коды ошибок
-				_invalid_string,
-				_invalid_escape,
-				_invalid_unicode_char,
-				_invalid_unicode_low_pair,
-			};
-
-			// конструктор 
-			encoding_error(error_code code, size_t line, size_t col);
-		private:
-
-			// формирование сообщения
-			std::string form_message(error_code code);
-
-			error_code code;
-		};
 
 		// интерфейс декодера
 		class i_decoder {
@@ -61,13 +41,13 @@ namespace json {
 		class i_encoder {
 		public:
 			virtual ~i_encoder() = default;
-			virtual void encode(json::io_base::i_output * _dest, const std::string & _string) = 0;
+			virtual void encode(io_base::i_output_ptr _dest, const std::string & _string) = 0;
 		};
 
 		// базовый декодер 
 		class base_decoder : public i_decoder {
 		public:
-			explicit base_decoder(std::unique_ptr<io_base::i_input> input);
+			explicit base_decoder(io_base::i_input_ptr_ref input);
 			virtual char32_t next_char() = 0;
 			char32_t current_char();
 			char32_t peek_char();
@@ -81,32 +61,36 @@ namespace json {
 			std::vector<char32_t> _buff; // буфер для символов 
 			size_t _position; // позиция
 			bool _eof = false; // конец
-			std::unique_ptr<io_base::i_input> _input; // источник получения данных
+			io_base::i_input_ptr_ref _input; // источник получения данных
 		};
 
 		// декодер utf8
 		class utf8_decoder : public base_decoder {
 		public:
-			explicit utf8_decoder(std::unique_ptr<io_base::i_input> input);
+			explicit utf8_decoder(io_base::i_input_ptr_ref input);
 			char32_t next_char();
 			void position(size_t pos);
 		private:
 			char32_t read_impl();
 			bool skip_bom();
 			bool _bom = false; // наличие BOM
-
 		};
 
 		// декодер ascii
 		class ascii_decoder : public base_decoder {
 		public:
-			explicit ascii_decoder(std::unique_ptr<io_base::i_input> input);
+			explicit ascii_decoder(io_base::i_input_ptr_ref input);
 			char32_t next_char();
 			void position(size_t pos);
 		};
 
-	}
+		using i_decoder_ptr = std::unique_ptr<i_decoder>;
+		using i_decoder_ptr_ref = std::unique_ptr<i_decoder> &;
+		using i_encoder_ptr = std::unique_ptr<i_encoder>;
+		using i_encoder_ptr_ref = std::unique_ptr<i_encoder> &;
 
-};
+	} // encodings
+
+} // json
 
 #endif // !__DRON_JSON_ENCODING__
