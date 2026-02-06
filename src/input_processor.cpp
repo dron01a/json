@@ -7,7 +7,33 @@ json::io::input_error::input_error(error_code code, size_t & line, size_t & col)
 {}
 
 std::string json::io::input_error::form_message(error_code code){
-	return std::string();
+	std::string result;
+	switch (code){
+	case json::io::input_error::error_code::_error_token:
+		result += "error token";
+		break;
+	case json::io::input_error::error_code::_invalid_string:
+		result += "invalid string";
+		break;
+	case json::io::input_error::error_code::_invalid_number:
+		result += "invalid number";
+		break;
+	case json::io::input_error::error_code::_invalid_number_format:
+		break;
+	case json::io::input_error::error_code::_invalid_escape:
+		result += "escape processing error";
+		break;
+	case json::io::input_error::error_code::_invalid_unicode_char:
+		result += "unicode char processing error";
+		break;
+	case json::io::input_error::error_code::_invalid_unicode_low_pair:
+		result += "unicode low pair processing error";
+		break;
+	case json::io::input_error::error_code::_literal_error:
+		result += "literal error";
+		break;
+	}
+	return result;
 }
 
 json::io::token::token() : _type(token_type::_none) {}
@@ -23,14 +49,18 @@ json::io::token::token(double data) : _type(token_type::_number) {
 }
 
 json::io::token::token(const char * data) : _type(token_type::_string) {
-	_data._string_data = data;
+	new (&_data._string_data) std::string(data);
 }
 
 json::io::token::token(const std::string & data) : _type(token_type::_string) {
-	_data._string_data = data;
+	new (&_data._string_data) std::string(data);
 }
 
-json::io::token::~token() {}
+json::io::token::~token() {
+	if (_type == token_type::_string) {
+		_data._string_data.~basic_string();
+	}
+}
 
 json::io::token & json::io::token::operator=(const token & other) {
 	copy_data(other);
@@ -62,7 +92,7 @@ void json::io::token::type(token_type t) {
 		_data._double_data = 0;
 		break;
 	case token_type::_string:
-		_data._string_data = "";
+		new (&_data._string_data) std::string("");
 		break;
 	}
 }
@@ -75,14 +105,17 @@ void json::io::token::copy_data(const token & other) {
 		_data._double_data = other._data._double_data;
 		break;
 	case token_type::_string:
-		_data._string_data = other._data._string_data;
+		new (&_data._string_data) std::string(other._data._string_data);
 		break;
 	}
 }
 
 json::io::base_input_processor::base_input_processor(size_t & line, size_t & col) : _line(line), _col(col){}
+
+json::io::base_input_processor::base_input_processor(const base_input_processor & bip) 
+	: _line(bip._line), _col(bip._col){}
 	
-json::io::token json::io::base_input_processor::parse_string(std::unique_ptr<encodings::i_decoder> & _decoder){
+json::io::token json::io::base_input_processor::parse_string(encodings::i_decoder_ptr_ref _decoder){
 	std::string result_string;
 	result_string.reserve(64);
 	char32_t _c = _decoder->next_char();
@@ -98,11 +131,13 @@ json::io::token json::io::base_input_processor::parse_string(std::unique_ptr<enc
 			result_string += _c;
 			break;
 		}
+		_c = _decoder->next_char();
+		_col++;
 	}
 	return token(result_string);
 }
 
-std::string json::io::base_input_processor::parse_escape(std::unique_ptr<encodings::i_decoder> & _decoder) {
+std::string json::io::base_input_processor::parse_escape(encodings::i_decoder_ptr_ref _decoder) {
 	std::string result;
 	char32_t _c = _decoder->next_char();
 	_col++;
@@ -123,10 +158,10 @@ std::string json::io::base_input_processor::parse_escape(std::unique_ptr<encodin
 	return result;
 }
 
-std::string json::io::base_input_processor::parse_unicode(std::unique_ptr<encodings::i_decoder>& _decoder){
+std::string json::io::base_input_processor::parse_unicode(encodings::i_decoder_ptr_ref _decoder){
 	std::string result;
 	uint32_t code = parse_unicode_pair(_decoder);
-	if (code >= 0xD800 && code <= 0xDBFF) { // проверяем на наличие суррогатной пары
+	if (code >= 0xD800 && code <= 0xDBFF) { // проверяем на наличие сурогатной пары
 		uint32_t low_code = parse_unicode_pair(_decoder);
 		if (low_code < 0xDC00 || low_code > 0xDFFF) {
 			throw input_error(input_error::error_code::_invalid_unicode_low_pair, _line, _col);
@@ -154,7 +189,7 @@ std::string json::io::base_input_processor::parse_unicode(std::unique_ptr<encodi
 	return result;
 }
 
-uint32_t json::io::base_input_processor::parse_unicode_pair(std::unique_ptr<encodings::i_decoder>& _decoder){
+uint32_t json::io::base_input_processor::parse_unicode_pair(encodings::i_decoder_ptr_ref _decoder){
 	uint32_t result_code;
 	for (size_t i = 0; i < 4; ++i) {
 		char c = _decoder->next_char();
@@ -178,7 +213,7 @@ uint32_t json::io::base_input_processor::parse_unicode_pair(std::unique_ptr<enco
 	return result_code;
 }
 
-json::io::token json::io::base_input_processor::parse_number(std::unique_ptr<encodings::i_decoder>& _decoder){
+json::io::token json::io::base_input_processor::parse_number(encodings::i_decoder_ptr_ref _decoder){
 	std::string result_digit;
 	char cur_char = _decoder->current_char();
 	if (cur_char == '-') {
@@ -222,7 +257,7 @@ json::io::token json::io::base_input_processor::parse_number(std::unique_ptr<enc
 	}
 }
 
-bool json::io::base_input_processor::parse_literal(std::unique_ptr<encodings::i_decoder>& _decoder, const char * literal_str, size_t len){
+bool json::io::base_input_processor::parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, size_t len){
 	char cur_char = _decoder->next_char();
 	for (size_t i = 1; i < len; ++i) {
 		if (cur_char != literal_str[i] || cur_char == '\0') {
@@ -234,7 +269,7 @@ bool json::io::base_input_processor::parse_literal(std::unique_ptr<encodings::i_
 	return true;
 }
 
-void json::io::base_input_processor::skip_space(std::unique_ptr<encodings::i_decoder>& _decoder){
+void json::io::base_input_processor::skip_space(encodings::i_decoder_ptr_ref _decoder){
 	char cur_char = _decoder->next_char();
 	while (cur_char == ' ' || cur_char == '\t' || cur_char == '\n' || cur_char == '\r') {
 		switch (cur_char) {
@@ -252,42 +287,81 @@ void json::io::base_input_processor::skip_space(std::unique_ptr<encodings::i_dec
 	}
 }
 
-void json::io::base_input_processor::skip_coments(std::unique_ptr<encodings::i_decoder>& _decoder){
-	/*char c = _decoder->current_char();
-	bool is_comment = false;
-	bool multi_line_comment = false;
-	if (c == '/') {
-		c = _decoder->next_char();
-		switch (c){
-		case '*':
-			multi_line_comment = true;
-			is_comment = true;
-			break;
-		case '/':
-			multi_line_comment = false;
-			is_comment = true;
-			break;
-		default:
-			is_comment = false;
-			break;
-		}
-	}
-	while (is_comment){
-		if (multi_line_comment) {
-			while (c != std::char_traits<char>::eof()) {
-				if (c == '*') {
-					c = _decoder->peek_char();
-					if (c == '/') {
-						multi_line_comment = false;
-						_decoder->clear_peek_buff();
+void json::io::base_input_processor::skip_coments(encodings::i_decoder_ptr_ref _decoder){
+	char c = _decoder->current_char();
+	while (c != std::char_traits<char>::eof()) {
+		if (c == '/') {
+			c = _decoder->next_char();
+			switch (c){
+			case '*':
+				while (c != std::char_traits<char>::eof()) {
+					skip_space(_decoder);
+					c = _decoder->next_char();
+					_col++;
+					if (c == '*') {
+						c = _decoder->next_char();
+						_col++;
+						if (c == '/') {
+							break;
+						}
 					}
 				}
-				c = _decoder->next_char();
+				break;
+			case '/':
+				while (c != std::char_traits<char>::eof() && c != '\n' && c != '\r') {
+					c = _decoder->current_char();
+					_col++;
+				}
+				break;
 			}
 		}
 		else {
-
+			_decoder->push_buff(static_cast<char32_t>(c));
+			break;
 		}
+		c = _decoder->next_char();
+	}
+}
 
-	}*/
+json::io::json_input_processor::json_input_processor(size_t & line, size_t & col) 
+	: base_input_processor(line, col){}
+
+json::io::json_input_processor::json_input_processor(const json_input_processor & jip)
+	: base_input_processor(jip._line, jip._col){}
+
+json::io::token json::io::json_input_processor::next_token(encodings::i_decoder_ptr_ref _decoder){
+	skip_space(_decoder);
+	skip_coments(_decoder);
+	char c = _decoder->next_char();
+	_col++;
+	switch (c){
+	case std::char_traits<char>::eof(): return token(token_type::_end);
+	case '{': return token(token_type::_open_curly_brt);
+	case '}': return token(token_type::_close_curly_brt);
+	case '[': return token(token_type::_open_square_brt);
+	case ']': return token(token_type::_close_square_brt);
+	case ':': return token(token_type::_colon);
+	case ',': return token(token_type::_comma);
+	case '\"': return parse_string(_decoder);
+	case '-':
+	case '0': case '1': case '2': case '3': case '4': 
+	case '5': case '6': case '7': case '8': case '9':
+		return parse_number(_decoder);
+	case 't':
+		if (parse_literal(_decoder, "true", 5)) {
+			return token(token_type::_true);
+		}
+		throw input_error(input_error::error_code::_literal_error, _line, _col);
+	case 'f':
+		if (parse_literal(_decoder, "false", 6)) {
+			return token(token_type::_false);
+		}
+		throw input_error(input_error::error_code::_literal_error, _line, _col);
+	case 'n':
+		if (parse_literal(_decoder, "null", 5)) {
+			return token(token_type::_null);
+		}
+		throw input_error(input_error::error_code::_literal_error, _line, _col);
+	default: throw input_error(input_error::error_code::_error_token, _line, _col);
+	}
 }

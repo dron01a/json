@@ -98,43 +98,44 @@ namespace json {
 			virtual ~i_input_processor() = default;
 			
 			// получение токена
-			virtual token next_token() = 0;
+			virtual token next_token(encodings::i_decoder_ptr_ref _decoder) = 0;
 
 		};
 
 		// класс с базовым функционалом
-		class base_input_processor {
+		class base_input_processor : public i_input_processor {
 		public:
 			// конструтор класса
 			base_input_processor(size_t& line, size_t& col);
+			base_input_processor(const base_input_processor & bip);
 
 		protected:
 
 			// вспомогательные методы
 			
 			// обработка строки
-			token parse_string(std::unique_ptr<encodings::i_decoder> & _decoder);
+			token parse_string(encodings::i_decoder_ptr_ref _decoder);
 			
 			// обработка escape последовательности
-			std::string parse_escape(std::unique_ptr<encodings::i_decoder> & _decoder);
+			std::string parse_escape(encodings::i_decoder_ptr_ref _decoder);
 
 			// обработка unicode последовательности
-			std::string parse_unicode(std::unique_ptr<encodings::i_decoder> & _decoder);
+			std::string parse_unicode(encodings::i_decoder_ptr_ref _decoder);
 
 			// обработка unicode пары
-			uint32_t parse_unicode_pair(std::unique_ptr<encodings::i_decoder> & _decoder);
+			uint32_t parse_unicode_pair(encodings::i_decoder_ptr_ref _decoder);
 
 			// обработка числа 
-			token parse_number(std::unique_ptr<encodings::i_decoder> & _decoder);
+			token parse_number(encodings::i_decoder_ptr_ref _decoder);
 
 			// обработка числа 
-			bool parse_literal(std::unique_ptr<encodings::i_decoder> & _decoder, const char * literal_str, size_t len);
+			bool parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, size_t len);
 
 			// пропуск пробелов и табуляций
-			void skip_space(std::unique_ptr<encodings::i_decoder> & _decoder);
+			void skip_space(encodings::i_decoder_ptr_ref _decoder);
 
 			// пропуск коментариев
-			void skip_coments(std::unique_ptr<encodings::i_decoder> & _decoder);
+			void skip_coments(encodings::i_decoder_ptr_ref _decoder);
 
 			// ссылки на линию и столбец
 			size_t & _line;
@@ -147,13 +148,17 @@ namespace json {
 		public:
 			//конструктор класса
 			json_input_processor(size_t& line, size_t& col);
+			json_input_processor(const json_input_processor & jip);
 
 			// получение токена
-			token next_token(std::unique_ptr<encodings::i_decoder> _decoder);
+			token next_token(encodings::i_decoder_ptr_ref _decoder);
 		};
 
-	};
+		using i_input_processor_ptr = std::unique_ptr<i_input_processor>;
+		using i_input_processor_ptr_ref = std::unique_ptr<i_input_processor>&;
 
-};
+	}; // io
+
+}; // json
 
 #endif // !_DRONJSON_INPUT_PROCESSOR_
