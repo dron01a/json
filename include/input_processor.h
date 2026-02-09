@@ -129,7 +129,7 @@ namespace json {
 			token parse_number(encodings::i_decoder_ptr_ref _decoder);
 
 			// обработка числа 
-			bool parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, size_t len);
+			token parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, token_type type);
 
 			// пропуск пробелов и табуляций
 			void skip_space(encodings::i_decoder_ptr_ref _decoder);

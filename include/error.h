@@ -7,7 +7,8 @@ namespace json {
 
 	enum class error_category {
 		io_error,
-		encoding_error,
+		input_error,
+		output_error,
 		parse_error,
 		document_error,
 		validation_error,
@@ -34,12 +35,13 @@ namespace json {
 	private:
 
 		// форматирование сообщения 
-		std::string format_message() const;
+		std::string format_message();
 
 		size_t _col = 0; // столбец
 		size_t _line = 0; // линия 
 		std::string _message; // сообщение об ошибке 
 		error_category _error_cat; // категоррия ошибки 
+		std::string err;
 	};
 
 }

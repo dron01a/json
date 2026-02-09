@@ -19,6 +19,7 @@ std::string json::io::input_error::form_message(error_code code){
 		result += "invalid number";
 		break;
 	case json::io::input_error::error_code::_invalid_number_format:
+		result += "invalid number format";
 		break;
 	case json::io::input_error::error_code::_invalid_escape:
 		result += "escape processing error";
@@ -30,7 +31,7 @@ std::string json::io::input_error::form_message(error_code code){
 		result += "unicode low pair processing error";
 		break;
 	case json::io::input_error::error_code::_literal_error:
-		result += "literal error";
+		result += "invalid literal";
 		break;
 	}
 	return result;
@@ -257,16 +258,16 @@ json::io::token json::io::base_input_processor::parse_number(encodings::i_decode
 	}
 }
 
-bool json::io::base_input_processor::parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, size_t len){
-	char cur_char = _decoder->next_char();
-	for (size_t i = 1; i < len; ++i) {
-		if (cur_char != literal_str[i] || cur_char == '\0') {
+json::io::token json::io::base_input_processor::parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, token_type type){
+	char cur_char = _decoder->current_char();
+	while (*literal_str != '\0') {
+		if (cur_char != *literal_str) {
 			throw input_error(input_error::error_code::_literal_error, _line, _col);
 		}
 		cur_char = _decoder->next_char();
+		*literal_str++;
 	}
-	_col += len;
-	return true;
+	return token(type);
 }
 
 void json::io::base_input_processor::skip_space(encodings::i_decoder_ptr_ref _decoder){
@@ -348,20 +349,23 @@ json::io::token json::io::json_input_processor::next_token(encodings::i_decoder_
 	case '5': case '6': case '7': case '8': case '9':
 		return parse_number(_decoder);
 	case 't':
-		if (parse_literal(_decoder, "true", 5)) {
+		/*if (parse_literal(_decoder, "true", 5)) {
 			return token(token_type::_true);
 		}
-		throw input_error(input_error::error_code::_literal_error, _line, _col);
+		throw input_error(input_error::error_code::_literal_error, _line, _col);*/
+		return parse_literal(_decoder, "true", token_type::_true);
 	case 'f':
-		if (parse_literal(_decoder, "false", 6)) {
+		/*if (parse_literal(_decoder, "false", 6)) {
 			return token(token_type::_false);
 		}
-		throw input_error(input_error::error_code::_literal_error, _line, _col);
+		throw input_error(input_error::error_code::_literal_error, _line, _col);*/
+		return parse_literal(_decoder, "false", token_type::_false);
 	case 'n':
-		if (parse_literal(_decoder, "null", 5)) {
+		/*if (parse_literal(_decoder, "null", 5)) {
 			return token(token_type::_null);
 		}
-		throw input_error(input_error::error_code::_literal_error, _line, _col);
+		throw input_error(input_error::error_code::_literal_error, _line, _col);*/
+		return parse_literal(_decoder, "null", token_type::_null);
 	default: throw input_error(input_error::error_code::_error_token, _line, _col);
 	}
 }

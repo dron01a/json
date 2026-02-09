@@ -1,5 +1,25 @@
 #include "io_base.h"
 
+json::io_base::io_error::io_error(error_code code, size_t & line, size_t & col, std::string file_name)
+	: base_error(error_category::io_error, line, col, form_message(code, file_name)) {
+}
+
+std::string json::io_base::io_error::form_message(error_code code, std::string file_name) {
+	std::string _result;
+	switch (code) {
+	case json::io_base::io_error::error_code::_file_not_found:
+		_result += "file " + file_name + " not found";
+		break;
+	case json::io_base::io_error::error_code::_string_is_empty:
+		_result += "string is empty";
+		break;
+	case json::io_base::io_error::error_code::_stream_is_bad:
+		_result += "bad thread";
+		break;
+	};
+	return _result;
+}
+
 json::io_base::file_input::file_input(const std::string & file_name) {
 	file.open(file_name, std::ios::in | std::ios::binary);
 }

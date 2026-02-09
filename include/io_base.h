@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <string>
+#include <memory>
 
 #include "error.h"
 
@@ -14,9 +15,16 @@ namespace json {
 		// класс ошибки ввода-вывода
 		class io_error : public base_error {
 		public:
+			enum class error_code {
+				_file_not_found,
+				_string_is_empty,
+				_stream_is_bad,
+			};
+
+			io_error(error_code code, size_t & line, size_t & col, std::string file_name = "");
 
 		private:
-
+			std::string form_message(error_code code, std::string file_name);
 		};
 
 		// интерфейс ввода данных
@@ -181,6 +189,10 @@ namespace json {
 			std::ostream * _desc; // указатель на поток куда записываем
 		};
 
+		using i_input_ptr = std::unique_ptr<i_input>;
+		using i_input_ptr_ref = std::unique_ptr<i_input> &;
+		using i_output_ptr = std::unique_ptr<i_output>;
+		using i_output_ptr_ref = std::unique_ptr<i_output> &;
 	};
 };
 
