@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <algorithm>
+#include <cctype>
+#include <type_traits>
 
 namespace json {
 
@@ -109,7 +112,7 @@ namespace json {
 
 	private:
 
-		enum class _iterator_type { _empty, _array, _object, c_array, c_object}; // тип итератора
+		enum class _iterator_type { _empty, _array, _object, c_array, c_object }; // тип итератора
 		union data{
 			array_iterator arr_it;
 			const_array_iterator const_arr_it;
@@ -128,7 +131,8 @@ namespace json {
 	public:
 
 		// конструтор класса
-		json_value();
+		json_value() noexcept = default;
+		json_value(value_type type);
 		json_value(bool data);
 		json_value(double data);
 		json_value(const std::string & string);
@@ -231,9 +235,6 @@ namespace json {
 
 	private:
 
-		// очистка данных в зависимости от типа
-		void clear_data();
-
 		// перемещение данных 
 		void copy_data(const json_value & val);
 
@@ -260,15 +261,36 @@ namespace json {
 
 		value_type _type = value_type::_null; // тип
 
-		// данные
-		union {
-			bool bool_data;
-			double num_data;
-			std::string  * str_data;
-			json_object * object_data;
-			json_array * array_data;
-		};
+		static constexpr size_t buffer_size = 
+			 sizeof(bool) > sizeof(double) ? sizeof(bool) :
+				   sizeof(double) > sizeof(std::string) ? sizeof(double) :
+				   sizeof(std::string) > sizeof(json::json_array) ? sizeof(std::string) :
+				   sizeof(json::json_array) > sizeof(json::json_object) ?
+							sizeof(json::json_array) : sizeof(json::json_object);
 
+		static constexpr size_t align_size =
+			alignof(bool) > alignof(double) ? alignof(bool) :
+			alignof(double) > alignof(std::string) ? alignof(double) :
+			alignof(std::string) > alignof(json::json_array) ? alignof(std::string) :
+			alignof(json::json_array) > alignof(json::json_object) ?
+			alignof(json::json_array) : alignof(json::json_object);
+
+		alignas(align_size) char storage[buffer_size];
+
+		template<typename _type, typename... args> 
+		void construct(args&&... _args) {
+			new (storage) _type(std::forward<args>(_args)...);
+		}
+
+		void clear_storage() noexcept;
+
+		template<typename _type> _type * get_ptr() noexcept {
+			return reinterpret_cast<_type*>(storage); 
+		}
+		
+		template<typename _type> const _type * get_ptr() const noexcept {
+			return reinterpret_cast<const _type*>(storage);
+		}
 	};
 
 }

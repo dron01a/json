@@ -228,35 +228,69 @@ bool json::json_value_iterator::is_mutable() const {
 	return _type == _iterator_type::_array || _type == _iterator_type::_object;
 }
 
-json::json_value::json_value() : _type(value_type::_null) {}
+void json::json_value::clear_storage() noexcept {
+	switch (_type) {
+	case json::value_type::_string:
+		get_ptr<std::string>()->~basic_string();
+		break;
+	case json::value_type::_array:
+		get_ptr<json::json_array>()->~vector();
+		break;
+	case json::value_type::_object:
+		get_ptr<json::json_object>()->~map();
+		break;
+	}
+	_type = value_type::_null;
+}
+
+json::json_value::json_value(value_type type){
+	_type = type;
+	switch (_type){
+	case json::value_type::_bool:
+		construct<bool>(false);
+		break;
+	case json::value_type::_number:
+		construct<double>(0);
+		break;
+	case json::value_type::_string:
+		construct<std::string>("");
+		break;
+	case json::value_type::_array:
+		construct<json_array>();
+		break;
+	case json::value_type::_object:
+		construct<json_object>();
+		break;
+	}
+}
 
 json::json_value::json_value(bool data) {
-	bool_data = data;
+	construct<bool>(data);
 	_type = value_type::_bool;
 }
 
 json::json_value::json_value(double data) {
-	num_data = data;
+	construct<double>(data);
 	_type = value_type::_number;
 }
 
 json::json_value::json_value(const std::string & string) {
-	str_data = new std::string(string);
+	construct<std::string>(string);
 	_type = value_type::_string;
 }
 
 json::json_value::json_value(const char * string) {
-	str_data = new std::string(string);
+	construct<std::string>(string);
 	_type = value_type::_string;
 }
 
 json::json_value::json_value(json_array data) {
-	array_data = new json_array(data);
+	construct<json_array>(data);
 	_type = value_type::_array;
 }
 
 json::json_value::json_value(json_object data) {
-	object_data = new json_object(data);
+	construct<json_object>(data);
 	_type = value_type::_object;
 }
 
@@ -269,33 +303,35 @@ json::json_value::json_value(json_value && val) {
 }
 
 json::json_value::json_value(const char * name, const json_value & val) {
-	object_data = new json_object();
-	object_data->insert({ name, val });
+	construct<json_object>();
+	get_ptr<json_object>()->insert({ name, val });
 	_type = value_type::_object;
 }
 
 json::json_value::json_value(const char * name, const json_value && val) {
-	object_data = new json_object();
-	object_data->insert({ name, std::move(val) });
+	construct<json_object>();
+	get_ptr<json_object>()->insert({ name, val });
 	_type = value_type::_object;
 }
 
 json::json_value & json::json_value::operator=(const json_value & val) {
+	clear_storage();
 	copy_data(val);
 	return *this;
 }
 
 json::json_value & json::json_value::operator=(json_value && val) {
+	clear_storage();
 	move_data(std::move(val));
 	return *this;
 }
 
 json::json_value::~json_value() {
-	clear_data();
+	clear_storage();
 }
 
 bool & json::json_value::as_bool() {
-	return bool_data;
+	return *get_ptr<bool>();
 }
 
 bool & json::json_value::as_bool() const {
@@ -303,13 +339,13 @@ bool & json::json_value::as_bool() const {
 }
 
 void json::json_value::as_bool(bool & val) {
-	clear_data();
+	clear_storage();
 	_type = value_type::_bool;
-	bool_data = val;
+	construct<bool>(val);
 }
 
 double & json::json_value::as_num() {
-	return num_data;
+	return *get_ptr<double>();
 }
 
 double & json::json_value::as_num() const {
@@ -317,13 +353,13 @@ double & json::json_value::as_num() const {
 }
 
 void json::json_value::as_num(double num) {
-	clear_data();
+	clear_storage();
 	_type = value_type::_number;
-	num_data = num;
+	construct<double>(num);
 }
 
 std::string & json::json_value::as_string() {
-	return *str_data;
+	return  *get_ptr<std::string>();
 }
 
 std::string & json::json_value::as_string() const {
@@ -331,19 +367,19 @@ std::string & json::json_value::as_string() const {
 }
 
 void json::json_value::as_string(const std::string & string) {
-	clear_data();
+	clear_storage();
 	_type = value_type::_string;
-	str_data = new std::string(string);
+	construct<std::string>(string);
 }
 
 void json::json_value::as_string(const char * string) {
-	clear_data();
+	clear_storage();
 	_type = value_type::_string;
-	str_data = new std::string(string);
+	construct<std::string>(string);
 }
 
 json::json_array * json::json_value::as_array() {
-	return array_data;
+	return get_ptr<json::json_array>();
 }
 
 json::json_array * json::json_value::as_array() const {
@@ -351,13 +387,13 @@ json::json_array * json::json_value::as_array() const {
 }
 
 void json::json_value::as_array(json_array array) {
-	clear_data();
+	clear_storage();
 	_type = value_type::_array;
-	array_data = new json_array(array);
+	construct<json_array>(array);
 }
 
 json::json_object * json::json_value::as_object() {
-	return object_data;
+	return get_ptr<json::json_object>();
 }
 
 json::json_object * json::json_value::as_object() const {
@@ -365,9 +401,9 @@ json::json_object * json::json_value::as_object() const {
 }
 
 void json::json_value::as_object(json_object object) {
-	clear_data();
+	clear_storage();
 	_type = value_type::_object;
-	object_data = new json_object(object);
+	construct<json_object>(object);
 }
 
 json::jv_pointer json::json_value::find(const std::string & name) {
@@ -411,8 +447,8 @@ json::jv_pointer json::json_value::add(const json_value & val) {
 	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_array:
-		array_data->push_back(val);
-		result = &array_data->back();
+		get_ptr<json::json_array>()->push_back(val);
+		result = &get_ptr<json::json_array>()->back();
 		break;
 	}
 	return result;
@@ -425,8 +461,8 @@ json::jv_pointer json::json_value::add(json_value && val) {
 	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_array:
-		array_data->push_back(std::move(val));
-		result = &array_data->back();
+		get_ptr<json::json_array>()->push_back(std::move(val));
+		result = &get_ptr<json::json_array>()->back();
 		break;
 	}
 	return result;
@@ -439,12 +475,12 @@ json::jv_pointer json::json_value::add(const char * name, const json_value & val
 	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_object:
-		object_data->insert_or_assign(name, val);
-		result = &object_data->operator[](name);
+		get_ptr<json::json_object>()->insert_or_assign(name, val);
+		result = &get_ptr<json::json_object>()->operator[](name);
 		break;
 	case json::value_type::_array:
-		array_data->push_back(json_value(name, val));
-		result = &array_data->back();
+		get_ptr<json::json_array>()->push_back(json_value(name, val));
+		result = &get_ptr<json::json_array>()->back();
 		break;
 	}
 	return result;
@@ -457,12 +493,12 @@ json::jv_pointer json::json_value::add(const char * name, json_value && val) {
 	jv_pointer result = nullptr;
 	switch (_type) {
 	case json::value_type::_object:
-		object_data->insert_or_assign(name, std::move(val));
-		result = &object_data->operator[](name);
+		get_ptr<json::json_object>()->insert_or_assign(name, std::move(val));
+		result = &get_ptr<json::json_object>()->operator[](name);
 		break;
 	case json::value_type::_array:
-		array_data->push_back(json_value(name, std::move(val)));
-		result = &array_data->back();
+		get_ptr<json::json_array>()->push_back(json_value(name, std::move(val)));
+		result = &get_ptr<json::json_array>()->back();
 		break;
 	}
 	return result;
@@ -480,9 +516,9 @@ void json::json_value::remove(const char * key){
 	if (_type != value_type::_object) {
 		return;
 	}
-	auto target = object_data->find(key);
-	if (target != object_data->end()) {
-		object_data->erase(target);
+	auto target = get_ptr<json::json_object>()->find(key);
+	if (target != get_ptr<json::json_object>()->end()) {
+		get_ptr<json::json_object>()->erase(target);
 	}
 }
 
@@ -494,14 +530,14 @@ void json::json_value::remove(size_t num){
 	if (_type != value_type::_array || num < 0) {
 		return;
 	}
-	if (num > array_data->size()) {
+	if (num > get_ptr<json::json_array>()->size()) {
 		return;
 	}
-	array_data->erase(array_data->begin() + num);
+	get_ptr<json::json_array>()->erase(get_ptr<json::json_array>()->begin() + num);
 }
 
 void json::json_value::clear(){
-	clear_data();
+	clear_storage();
 }
 
 json::json_value json::json_value::extract(const char * key){
@@ -509,10 +545,10 @@ json::json_value json::json_value::extract(const char * key){
 		throw; // ошибка
 		//return;
 	}
-	auto target = object_data->find(key);
+	auto target = get_ptr<json::json_object>()->find(key);
 	json_value res = std::move(target->second);
-	if (target != object_data->end()) {
-		object_data->erase(target);
+	if (target != get_ptr<json::json_object>()->end()) {
+		get_ptr<json::json_object>()->erase(target);
 	}
 	return res;
 }
@@ -526,7 +562,25 @@ json::value_type json::json_value::type() const {
 }
 
 void json::json_value::type(value_type _t) {
+	clear_storage();
 	_type = _t;
+	switch (_type) {
+	case json::value_type::_bool:
+		construct<bool>(false);
+		break;
+	case json::value_type::_number:
+		construct<double>(0);
+		break;
+	case json::value_type::_string:
+		construct<std::string>("");
+		break;
+	case json::value_type::_array:
+		construct<json_array>();
+		break;
+	case json::value_type::_object:
+		construct<json_object>();
+		break;
+	}
 }
 
 bool json::json_value::is_null() const {
@@ -562,12 +616,12 @@ size_t json::json_value::item_count(){
 	case value_type::_string:
 		return 1;
 	case value_type::_array:
-		for (size_t i = 0; i < array_data->size(); ++i) {
-			count += 1 + array_data->operator[](i).item_count();
+		for (size_t i = 0; i < get_ptr<json::json_array>()->size(); ++i) {
+			count += 1 + get_ptr<json::json_array>()->operator[](i).item_count();
 		}
 		break;
 	case value_type::_object:
-		for (auto it = object_data->begin(); it != object_data->end(); ++it) {
+		for (auto it = get_ptr<json::json_object>()->begin(); it != get_ptr<json::json_object>()->end(); ++it) {
 			count += 1 + it->second.item_count();
 		}
 		break;
@@ -578,9 +632,9 @@ size_t json::json_value::item_count(){
 json::json_value_iterator json::json_value::begin(){
 	switch (_type){
 	case json::value_type::_array:
-		return json_value_iterator(array_data->begin());
+		return json_value_iterator(get_ptr<json::json_array>()->begin());
 	case json::value_type::_object:
-		return json_value_iterator(object_data->begin());
+		return json_value_iterator(get_ptr<json::json_object>()->begin());
 	default:
 		break; // вставить обработчик ошибки
 	}
@@ -593,9 +647,9 @@ json::json_value_iterator json::json_value::begin() const {
 json::json_value_iterator json::json_value::cbegin() const{
 	switch (_type) {
 	case json::value_type::_array:
-		return json_value_iterator(array_data->cbegin());
+		return json_value_iterator(get_ptr<json::json_array>()->cbegin());
 	case json::value_type::_object:
-		return json_value_iterator(object_data->cbegin());
+		return json_value_iterator(get_ptr<json::json_object>()->cbegin());
 	default:
 		break; // вставить обработчик ошибки
 	}
@@ -604,9 +658,9 @@ json::json_value_iterator json::json_value::cbegin() const{
 json::json_value_iterator json::json_value::end(){
 	switch (_type) {
 	case json::value_type::_array:
-		return json_value_iterator(array_data->end());
+		return json_value_iterator(get_ptr<json::json_array>()->end());
 	case json::value_type::_object:
-		return json_value_iterator(object_data->end());
+		return json_value_iterator(get_ptr<json::json_object>()->end());
 	default:
 		break; // вставить обработчик ошибки
 	}
@@ -619,76 +673,58 @@ json::json_value_iterator json::json_value::end() const{
 json::json_value_iterator json::json_value::cend() const {
 	switch (_type) {
 	case json::value_type::_array:
-		return json_value_iterator(array_data->cend());
+		return json_value_iterator(get_ptr<json::json_array>()->cend());
 	case json::value_type::_object:
-		return json_value_iterator(object_data->cend());
+		return json_value_iterator(get_ptr<json::json_object>()->cend());
 	default:
 		break; // вставить обработчик ошибки
 	}
 }
 
-void json::json_value::clear_data() {
-	switch (_type) {
-	case json::value_type::_string:
-		delete str_data;
-		str_data = nullptr;
-		break;
-	case json::value_type::_array:
-		delete array_data;
-		array_data = nullptr;
-		break;
-	case json::value_type::_object:
-		delete object_data;
-		object_data = nullptr;
-		break;
-	}
-}
-
 void json::json_value::copy_data(const json_value & val) {
-	clear_data();
 	_type = val._type;
 	switch (_type) {
 	case value_type::_bool:
-		bool_data = val.bool_data;
+		construct<bool>(*val.get_ptr<bool>());
 		break;
 	case value_type::_number:
-		num_data = val.num_data;
+		construct<double>(*val.get_ptr<double>());
 		break;
 	case value_type::_string:
-		str_data = new std::string(*val.str_data);
+		construct<std::string>(*val.get_ptr<std::string>());
 		break;
 	case value_type::_array:
-		array_data = new json_array(*val.array_data);
+		construct<json_array>(*val.get_ptr<json_array>());
 		break;
 	case value_type::_object:
-		object_data = new json_object(*val.object_data);
+		construct<json_object>(*val.get_ptr<json_object>());
 		break;
 	}
 }
 
 void json::json_value::move_data(json_value && val) {
-	clear_data();
-	_type = std::move(val._type);
+	_type = val._type;
 	switch (_type) {
 	case value_type::_bool:
-		bool_data = std::move(val.bool_data);
+		construct<bool>(std::move(*val.get_ptr<bool>()));
 		break;
 	case value_type::_number:
-		num_data = std::move(val.num_data);
+		construct<double>(std::move(*val.get_ptr<double>()));
 		break;
 	case value_type::_string:
-		std::swap(str_data, val.str_data);
-		val.str_data = nullptr;
+		construct<std::string>(std::move(*val.get_ptr<std::string>()));
+		val.get_ptr<std::string>()->~basic_string();
 		break;
 	case value_type::_array:
-		std::swap(array_data, val.array_data);
-		val.array_data = nullptr;
+		construct<json_array>(std::move(*val.get_ptr<json_array>()));
+		val.get_ptr<json_array>()->~vector();
 		break;
 	case value_type::_object:
-		std::swap(object_data, val.object_data);
-		val.array_data = nullptr;
+		construct<json_object>(std::move(*val.get_ptr<json_object>()));
+		val.get_ptr<json_object>()->~map();
 		break;
 	}
+	val._type = value_type::_null;
 }
 
 json::jv_pointer json::json_value::find_impl(json_value & val, const char * name){
@@ -703,8 +739,8 @@ json::jv_pointer json::json_value::find_impl(json_value & val, const char * name
 
 json::jv_pointer json::json_value::find_in_array(const char * name) {
 	json::jv_pointer _result = nullptr;
-	for (size_t _i = 0; _i < array_data->size(); ++_i) {
-		_result = find_impl(array_data->operator[](_i), name);
+	for (size_t _i = 0; _i < get_ptr<json_array>()->size(); ++_i) {
+		_result = find_impl(get_ptr<json_array>()->operator[](_i), name);
 		if (_result) {
 			break;
 		}
@@ -714,11 +750,11 @@ json::jv_pointer json::json_value::find_in_array(const char * name) {
 
 json::jv_pointer json::json_value::find_in_object(const char * name) {
 	json::jv_pointer _result = nullptr;
-	if (object_data->count(std::string(name)) != 0) {
-		_result = &object_data->operator[](name);
+	if (get_ptr<json::json_object>()->count(std::string(name)) != 0) {
+		_result = &get_ptr<json::json_object>()->operator[](name);
 	}
 	if (!_result) {
-		for (auto it = object_data->begin(); it != object_data->end(); ++it) {
+		for (auto it = get_ptr<json::json_object>()->begin(); it != get_ptr<json::json_object>()->end(); ++it) {
 			_result = find_impl(it->second, name);
 			if (_result) {
 				break;
@@ -745,8 +781,8 @@ void json::json_value::select_impl(json_pointer_array & res, json_pointer_array 
 json::json_pointer_array json::json_value::select_in_array(const char * name){
 	json_pointer_array _result;
 	json_pointer_array _sub_result;
-	for (size_t _i = 0; _i < array_data->size(); ++_i) {
-		select_impl(_result, _sub_result, array_data->operator[](_i), name);
+	for (size_t _i = 0; _i < get_ptr<json_array>()->size(); ++_i) {
+		select_impl(_result, _sub_result, get_ptr<json_array>()->operator[](_i), name);
 	}
 	return _result;
 }
@@ -754,10 +790,10 @@ json::json_pointer_array json::json_value::select_in_array(const char * name){
 json::json_pointer_array json::json_value::select_in_object(const char * name){
 	json_pointer_array _result;
 	json_pointer_array _sub_result;
-	if (object_data->count(std::string(name)) != 0) {
-		_result.push_back(&object_data->operator[](name));
+	if (get_ptr<json::json_object>()->count(std::string(name)) != 0) {
+		_result.push_back(&get_ptr<json::json_object>()->operator[](name));
 	}
-	for (auto it = object_data->begin(); it != object_data->end(); ++it) {
+	for (auto it = get_ptr<json::json_object>()->begin(); it != get_ptr<json::json_object>()->end(); ++it) {
 		select_impl(_result, _sub_result, it->second, name);
 	}
 	return _result;
