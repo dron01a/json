@@ -13,9 +13,8 @@ namespace json {
 		public:
 			// конструктор класса 
 			tokenizer(i_input_processor_ptr_ref input_proc,
-				      encodings::i_decoder_ptr_ref decoder,
-				      size_t & line, 
-				      size_t & col);
+					  encodings::i_decoder_ptr_ref decoder, 
+				      std::vector<std::unique_ptr<base_error>> & errors);
 
 		    tokenizer(const tokenizer & tok);
 
@@ -29,13 +28,14 @@ namespace json {
 			token & last();
 
 		private:
-			size_t & _line; // ссылка на линию ??
-			size_t & _col;	// ссылка на столбец ??
 			i_input_processor_ptr_ref _input_proc; // ссылка на обработчик ввода
 			encodings::i_decoder_ptr_ref _decoder; // ссылка на декодер 
+			std::vector<std::unique_ptr<base_error>> & _errors; // ссылка на вектор с ошибками 
+
 			token cur_token; // последний полученный токен
 		};
 
+		using tokenizer_ptr = std::unique_ptr<json::io::tokenizer>;
 	};
 
 };
