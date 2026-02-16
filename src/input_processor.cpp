@@ -7,34 +7,24 @@ json::io::input_error::input_error(error_code code, size_t & line, size_t & col)
 {}
 
 std::string json::io::input_error::form_message(error_code code){
-	std::string result;
 	switch (code){
 	case json::io::input_error::error_code::_error_token:
-		result += "error token";
-		break;
+		return "error token";
 	case json::io::input_error::error_code::_invalid_string:
-		result += "invalid string";
-		break;
+		return "invalid string";
 	case json::io::input_error::error_code::_invalid_number:
-		result += "invalid number";
-		break;
+		return "invalid number";
 	case json::io::input_error::error_code::_invalid_number_format:
-		result += "invalid number format";
-		break;
+		return "invalid number format";
 	case json::io::input_error::error_code::_invalid_escape:
-		result += "escape processing error";
-		break;
+		return "escape processing error";
 	case json::io::input_error::error_code::_invalid_unicode_char:
-		result += "unicode char processing error";
-		break;
+		return "unicode char processing error";
 	case json::io::input_error::error_code::_invalid_unicode_low_pair:
-		result += "unicode low pair processing error";
-		break;
+		return "unicode low pair processing error";
 	case json::io::input_error::error_code::_literal_error:
-		result += "invalid literal";
-		break;
+		return "invalid literal";
 	}
-	return result;
 }
 
 json::io::token::token() : _type(token_type::_none) {}
@@ -75,11 +65,29 @@ std::string json::io::token::string_data() const {
 	return "";
 }
 
+void json::io::token::string_data(std::string data){
+	if (_type != token_type::_string) {
+		new (&_data._string_data) std::string(data);
+		_type = token_type::_string;
+	}
+	else {
+		_data._string_data = data;
+	}
+}
+
 double json::io::token::double_data() const {
 	if (_type == token_type::_number) {
 		return _data._double_data;
 	}
 	return 0.0;
+}
+
+void json::io::token::double_data(double data){
+	if (_type == token_type::_string) {
+		_data._string_data.~basic_string();
+	}
+	_type = token_type::_number;
+	_data._double_data = data;
 }
 
 json::io::token_type json::io::token::type() const {
@@ -111,17 +119,25 @@ void json::io::token::copy_data(const token & other) {
 	}
 }
 
-json::io::base_input_processor::base_input_processor(size_t & line, size_t & col) : _line(line), _col(col){}
+json::io::base_input_processor::base_input_processor() : _line(0), _col(0){}
 
 json::io::base_input_processor::base_input_processor(const base_input_processor & bip) 
 	: _line(bip._line), _col(bip._col){}
+
+size_t json::io::base_input_processor::line(){
+	return _line;
+}
+
+size_t json::io::base_input_processor::col(){
+	return _col;
+}
 	
-json::io::token json::io::base_input_processor::parse_string(encodings::i_decoder_ptr_ref _decoder){
+json::io::token json::io::base_input_processor::parse_string(encodings::i_decoder_ptr_ref _decoder, char quote_char){
 	std::string result_string;
 	result_string.reserve(64);
 	char32_t _c = _decoder->next_char();
 	_col++;
-	while (_c != '\"') {
+	while (_c != quote_char) {
 		switch (_c){
 		case std::char_traits<char>::eof():
 			throw json::io::input_error(input_error::error_code::_invalid_string, _line, _col);
@@ -324,11 +340,9 @@ void json::io::base_input_processor::skip_coments(encodings::i_decoder_ptr_ref _
 	}
 }
 
-json::io::json_input_processor::json_input_processor(size_t & line, size_t & col) 
-	: base_input_processor(line, col){}
+json::io::json_input_processor::json_input_processor() : base_input_processor() {}
 
-json::io::json_input_processor::json_input_processor(const json_input_processor & jip)
-	: base_input_processor(jip._line, jip._col){}
+json::io::json_input_processor::json_input_processor(const json_input_processor & jip) : base_input_processor(jip) {}
 
 json::io::token json::io::json_input_processor::next_token(encodings::i_decoder_ptr_ref _decoder){
 	skip_space(_decoder);
@@ -343,29 +357,166 @@ json::io::token json::io::json_input_processor::next_token(encodings::i_decoder_
 	case ']': return token(token_type::_close_square_brt);
 	case ':': return token(token_type::_colon);
 	case ',': return token(token_type::_comma);
-	case '\"': return parse_string(_decoder);
+	case '\"': return parse_string(_decoder, '\"');
 	case '-':
 	case '0': case '1': case '2': case '3': case '4': 
 	case '5': case '6': case '7': case '8': case '9':
 		return parse_number(_decoder);
 	case 't':
-		/*if (parse_literal(_decoder, "true", 5)) {
-			return token(token_type::_true);
-		}
-		throw input_error(input_error::error_code::_literal_error, _line, _col);*/
 		return parse_literal(_decoder, "true", token_type::_true);
 	case 'f':
-		/*if (parse_literal(_decoder, "false", 6)) {
-			return token(token_type::_false);
-		}
-		throw input_error(input_error::error_code::_literal_error, _line, _col);*/
 		return parse_literal(_decoder, "false", token_type::_false);
 	case 'n':
-		/*if (parse_literal(_decoder, "null", 5)) {
-			return token(token_type::_null);
-		}
-		throw input_error(input_error::error_code::_literal_error, _line, _col);*/
 		return parse_literal(_decoder, "null", token_type::_null);
 	default: throw input_error(input_error::error_code::_error_token, _line, _col);
 	}
+}
+
+json::io::json5_input_processor::json5_input_processor() : base_input_processor() {}
+
+json::io::json5_input_processor::json5_input_processor(const json_input_processor & jip) 
+	: base_input_processor(jip) {}
+
+json::io::token json::io::json5_input_processor::next_token(encodings::i_decoder_ptr_ref _decoder){
+	skip_space(_decoder);
+	skip_coments(_decoder);
+	char cur_char = _decoder->next_char();
+	_col++;
+	if (cur_char == '+' && cur_char == '-') {
+		return parse_json5_number(_decoder);
+	}
+	/*else if (std::isdigit(cur_char)) {
+		return parse_number(_decoder);
+	}*/
+	if (std::isalpha(cur_char) || cur_char == '_' || cur_char == '&') {
+		return parse_literal_or_indentifier(_decoder);
+	}
+	switch (cur_char) {
+	case std::char_traits<char>::eof(): return token(token_type::_end);
+	case '{': return token(token_type::_open_curly_brt);
+	case '}': return token(token_type::_close_curly_brt);
+	case '[': return token(token_type::_open_square_brt);
+	case ']': return token(token_type::_close_square_brt);
+	case ':': return token(token_type::_colon);
+	case ',': return token(token_type::_comma);
+	case '.': return parse_dor_number(_decoder);
+	case '\"': return parse_string(_decoder, '\"');
+	case '\'': return parse_string(_decoder, '\'');
+	case '0': return parse_digit_or_hex(_decoder);
+	case '1': case '2': case '3':
+	case '4': case '5': case '6': 
+	case '7': case '8': case '9': 
+		return parse_number(_decoder);
+	default: throw input_error(input_error::error_code::_error_token, _line, _col);
+	};
+}
+
+json::io::token json::io::json5_input_processor::parse_digit_or_hex(encodings::i_decoder_ptr_ref _decoder) {
+	char cur_char = _decoder->peek_char();
+	if (cur_char == 'x' || cur_char == 'X') {
+		_decoder->next_char(); // пропуск х
+		return parse_hex_number(_decoder);
+	}
+	return parse_number(_decoder);
+}
+
+json::io::token json::io::json5_input_processor::parse_dor_number(encodings::i_decoder_ptr_ref _decoder) {
+	_decoder->push_buff('0');
+	_decoder->push_buff('.');
+	return parse_number(_decoder);
+}
+
+json::io::token json::io::json5_input_processor::parse_hex_number(encodings::i_decoder_ptr_ref _decoder){
+	std::string hex = "0x";
+	char cur_char = _decoder->next_char();
+	while (std::isxdigit(cur_char)) {
+		_col++;
+		hex += cur_char;
+		cur_char = _decoder->next_char();
+	}
+	_decoder->push_buff(cur_char);
+	try {
+		return token(static_cast<double>(std::stoull(hex, nullptr, 16)));
+	}
+	catch (std::exception & err) {
+		throw input_error(input_error::error_code::_invalis_hex_number, _line, _col);
+	}
+}
+
+json::io::token json::io::json5_input_processor::parse_infinity(encodings::i_decoder_ptr_ref _decoder, bool _negative){
+	_decoder->push_buff(std::tolower(_decoder->current_char()));
+	token result = parse_literal(_decoder, "infinity", token_type::_number);
+	if (_negative) {
+		result.double_data(-std::numeric_limits<double>::infinity());
+	}
+	else {
+		result.double_data(std::numeric_limits<double>::infinity());
+	}
+	return result;
+}
+
+json::io::token json::io::json5_input_processor::parse_nan(encodings::i_decoder_ptr_ref _decoder, bool _negative){
+	token result = parse_literal(_decoder, "NaN", token_type::_number);
+	if (_negative) {
+		result.double_data(-std::numeric_limits<double>::quiet_NaN());
+	}
+	else {
+		result.double_data(std::numeric_limits<double>::quiet_NaN());
+	}
+	return result;
+}
+
+json::io::token json::io::json5_input_processor::parse_literal_or_indentifier(encodings::i_decoder_ptr_ref _decoder){
+	std::string indetifier_string;
+	char cur_char = _decoder->current_char();
+	while (std::isalnum(cur_char) || cur_char == '_' || cur_char == '&') {
+		_col++;
+		indetifier_string += cur_char;
+		cur_char = _decoder->next_char();
+	}
+	_decoder->push_buff(cur_char);
+	if (indetifier_string == "true") {
+		return token(token_type::_true);
+	}
+	else if (indetifier_string == "false") {
+		return token(token_type::_false);
+	}
+	else if(indetifier_string == "null") {
+		return token(token_type::_null);
+	}
+	else if (indetifier_string =="Infinity") {
+		return token(std::numeric_limits<double>::infinity());
+	}
+	else if (indetifier_string == "NaN") {
+		return token(std::numeric_limits<double>::quiet_NaN());
+	}
+	return token(indetifier_string);
+}
+
+json::io::token json::io::json5_input_processor::parse_json5_number(encodings::i_decoder_ptr_ref _decoder){
+	token result;
+	bool is_negtive = false;
+	if (_decoder->current_char() == '-'){
+		is_negtive = true;
+	}
+	switch (_decoder->next_char()){
+	case 'I':
+	case 'i':
+		return parse_infinity(_decoder, is_negtive);
+	case 'N':
+		return parse_nan(_decoder, is_negtive);
+	case '0': 
+		result = parse_digit_or_hex(_decoder); 
+		break;
+	case '1': case '2': case '3':
+	case '4': case '5': case '6':
+	case '7': case '8': case '9':
+		result = parse_number(_decoder);
+		break;
+	default: throw input_error(input_error::error_code::_invalid_number, _line, _col);
+	}
+	if (is_negtive) {
+		result.double_data(-result.double_data()); 
+	}
+	return result;
 }

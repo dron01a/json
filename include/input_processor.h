@@ -18,6 +18,7 @@ namespace json {
 				_error_token = 0,
 				_invalid_string,
 				_invalid_number,
+				_invalis_hex_number,
 				_invalid_number_format,
 				_invalid_escape,
 				_invalid_unicode_char,
@@ -71,9 +72,11 @@ namespace json {
 
 			// возврат строковых данных 
 			std::string string_data() const;
+			void string_data(std::string data);
 
 			// возврат числовых данных 
 			double double_data() const;
+			void double_data(double data);
 
 			token_type type() const;
 			void type(token_type t);
@@ -100,21 +103,28 @@ namespace json {
 			// получение токена
 			virtual token next_token(encodings::i_decoder_ptr_ref _decoder) = 0;
 
+			virtual size_t line() = 0;
+
+			virtual size_t col()  = 0;
+
 		};
 
 		// класс с базовым функционалом
 		class base_input_processor : public i_input_processor {
 		public:
 			// конструтор класса
-			base_input_processor(size_t& line, size_t& col);
+			base_input_processor();
 			base_input_processor(const base_input_processor & bip);
+
+			size_t line();
+			size_t col();
 
 		protected:
 
 			// вспомогательные методы
 			
 			// обработка строки
-			token parse_string(encodings::i_decoder_ptr_ref _decoder);
+			token parse_string(encodings::i_decoder_ptr_ref _decoder, char quote_char);
 			
 			// обработка escape последовательности
 			std::string parse_escape(encodings::i_decoder_ptr_ref _decoder);
@@ -137,9 +147,8 @@ namespace json {
 			// пропуск коментариев
 			void skip_coments(encodings::i_decoder_ptr_ref _decoder);
 
-			// ссылки на линию и столбец
-			size_t & _line;
-			size_t & _col;
+			size_t _line; // линия 
+			size_t _col; // столбец
 
 		};
 
@@ -147,8 +156,51 @@ namespace json {
 		class json_input_processor : public base_input_processor {
 		public:
 			//конструктор класса
-			json_input_processor(size_t& line, size_t& col);
+			json_input_processor();
 			json_input_processor(const json_input_processor & jip);
+
+			// получение токена
+			token next_token(encodings::i_decoder_ptr_ref _decoder);
+		};
+
+		// класс обработки входа json5 
+		class json5_input_processor : public base_input_processor {
+		public:
+			//конструктор класса
+			json5_input_processor();
+			json5_input_processor(const json_input_processor & jip);
+
+			// получение токена
+			token next_token(encodings::i_decoder_ptr_ref _decoder);
+		private:
+			// обработка json5 чисел
+			token parse_json5_number(encodings::i_decoder_ptr_ref _decoder);
+
+			// обработка дестичного или шеснадцатиричного числа
+			token parse_digit_or_hex(encodings::i_decoder_ptr_ref _decoder);
+
+			// обработка числа после точки
+			token parse_dor_number(encodings::i_decoder_ptr_ref _decoder);
+
+			// обработка hex-чисел
+			token parse_hex_number(encodings::i_decoder_ptr_ref _decoder);
+
+			// обработка бесконечности 
+			token parse_infinity(encodings::i_decoder_ptr_ref _decoder, bool _negative);
+
+			// обработка nan
+			token parse_nan(encodings::i_decoder_ptr_ref _decoder, bool _negative);
+
+			// обработка идендификатора или литерала
+			token parse_literal_or_indentifier(encodings::i_decoder_ptr_ref _decoder);
+		};
+
+		// класс обработки входа yalm 
+		class yalm_input_processor : public base_input_processor {
+		public:
+			//конструктор класса
+			yalm_input_processor();
+			yalm_input_processor(const json_input_processor & jip);
 
 			// получение токена
 			token next_token(encodings::i_decoder_ptr_ref _decoder);

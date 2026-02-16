@@ -52,10 +52,10 @@ json::impl::dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config
 	case parse_config::sinax_mode::STANDART:
 		_input_proc = std::make_unique<json_input_processor>();
 		break;
-	/*case parse_config::sinax_mode::JSON5:
+	case parse_config::sinax_mode::JSON5:
 		_input_proc = std::make_unique<json5_input_processor>();
 		break;
-	case parse_config::sinax_mode::YALM:
+	/*case parse_config::sinax_mode::YALM:
 		_input_proc = std::make_unique<yalm_input_processor>();
 		break;*/
 	}
