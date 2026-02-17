@@ -9,6 +9,42 @@ namespace json {
 
 	namespace io {
 
+		namespace fsm {
+			
+			// конечный автомат для пропуска коментариев и пробелов 
+			class skip_coment_and_space_fsm {
+			public:
+				// конструтор класса
+				skip_coment_and_space_fsm();
+			
+				// обработка
+				void proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col);
+
+			private: 
+				
+				// состояния
+				enum class state {
+					_none = 0, // ничего
+					_line_comment, // коммент в линию
+					_block_comment, // блок коментариев
+					_end // выход из автомата
+				};
+
+				// обработка состояния none
+				void none_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col);
+
+				// обработка состояния line_comment
+				void line_comment_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col);
+
+				// обработка состояния block_comment
+				void block_comment_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col);
+
+				state _state; // текущее состояние
+
+			};
+
+		};
+
 		// класс ошибки получаемой информации
 		class input_error : public base_error {
 		public:
@@ -141,12 +177,6 @@ namespace json {
 			// обработка числа 
 			token parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, token_type type);
 
-			// пропуск пробелов и табуляций
-			void skip_space(encodings::i_decoder_ptr_ref _decoder);
-
-			// пропуск коментариев
-			void skip_coments(encodings::i_decoder_ptr_ref _decoder);
-
 			size_t _line; // линия 
 			size_t _col; // столбец
 
@@ -161,6 +191,10 @@ namespace json {
 
 			// получение токена
 			token next_token(encodings::i_decoder_ptr_ref _decoder);
+
+		private:
+
+			fsm::skip_coment_and_space_fsm _scs_fsm; // конечный автомат для пропуска коментариев
 		};
 
 		// класс обработки входа json5 
@@ -193,6 +227,8 @@ namespace json {
 
 			// обработка идендификатора или литерала
 			token parse_literal_or_indentifier(encodings::i_decoder_ptr_ref _decoder);
+
+			fsm::skip_coment_and_space_fsm _scs_fsm; // конечный автомат для пропуска коментариев
 		};
 
 		// класс обработки входа yalm 

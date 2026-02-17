@@ -286,67 +286,13 @@ json::io::token json::io::base_input_processor::parse_literal(encodings::i_decod
 	return token(type);
 }
 
-void json::io::base_input_processor::skip_space(encodings::i_decoder_ptr_ref _decoder){
-	char cur_char = _decoder->next_char();
-	while (cur_char == ' ' || cur_char == '\t' || cur_char == '\n' || cur_char == '\r') {
-		switch (cur_char) {
-		case ' ':
-		case '\t':
-			_col++;
-			break;
-		case '\n':
-		case '\r':
-			_col = 0;
-			_line++;
-			break;
-		}
-		cur_char = _decoder->next_char();
-	}
-}
-
-void json::io::base_input_processor::skip_coments(encodings::i_decoder_ptr_ref _decoder){
-	char c = _decoder->current_char();
-	while (c != std::char_traits<char>::eof()) {
-		if (c == '/') {
-			c = _decoder->next_char();
-			switch (c){
-			case '*':
-				while (c != std::char_traits<char>::eof()) {
-					skip_space(_decoder);
-					c = _decoder->next_char();
-					_col++;
-					if (c == '*') {
-						c = _decoder->next_char();
-						_col++;
-						if (c == '/') {
-							break;
-						}
-					}
-				}
-				break;
-			case '/':
-				while (c != std::char_traits<char>::eof() && c != '\n' && c != '\r') {
-					c = _decoder->current_char();
-					_col++;
-				}
-				break;
-			}
-		}
-		else {
-			_decoder->push_buff(static_cast<char32_t>(c));
-			break;
-		}
-		c = _decoder->next_char();
-	}
-}
-
 json::io::json_input_processor::json_input_processor() : base_input_processor() {}
 
 json::io::json_input_processor::json_input_processor(const json_input_processor & jip) : base_input_processor(jip) {}
 
 json::io::token json::io::json_input_processor::next_token(encodings::i_decoder_ptr_ref _decoder){
-	skip_space(_decoder);
-	skip_coments(_decoder);
+	_decoder->next_char();
+	_scs_fsm.proc(_decoder, _line, _col);
 	char c = _decoder->next_char();
 	_col++;
 	switch (c){
@@ -378,16 +324,13 @@ json::io::json5_input_processor::json5_input_processor(const json_input_processo
 	: base_input_processor(jip) {}
 
 json::io::token json::io::json5_input_processor::next_token(encodings::i_decoder_ptr_ref _decoder){
-	skip_space(_decoder);
-	skip_coments(_decoder);
-	char cur_char = _decoder->next_char();
+	_decoder->next_char();
+	_scs_fsm.proc(_decoder, _line, _col);
+	char cur_char = _decoder->current_char();
 	_col++;
-	if (cur_char == '+' && cur_char == '-') {
+	if (cur_char == '+' || cur_char == '-') {
 		return parse_json5_number(_decoder);
 	}
-	/*else if (std::isdigit(cur_char)) {
-		return parse_number(_decoder);
-	}*/
 	if (std::isalpha(cur_char) || cur_char == '_' || cur_char == '&') {
 		return parse_literal_or_indentifier(_decoder);
 	}
@@ -421,8 +364,6 @@ json::io::token json::io::json5_input_processor::parse_digit_or_hex(encodings::i
 }
 
 json::io::token json::io::json5_input_processor::parse_dor_number(encodings::i_decoder_ptr_ref _decoder) {
-	_decoder->push_buff('0');
-	_decoder->push_buff('.');
 	return parse_number(_decoder);
 }
 
@@ -444,8 +385,8 @@ json::io::token json::io::json5_input_processor::parse_hex_number(encodings::i_d
 }
 
 json::io::token json::io::json5_input_processor::parse_infinity(encodings::i_decoder_ptr_ref _decoder, bool _negative){
-	_decoder->push_buff(std::tolower(_decoder->current_char()));
-	token result = parse_literal(_decoder, "infinity", token_type::_number);
+	_decoder->next_char();
+	token result = parse_literal(_decoder, "nfinity", token_type::_number);
 	if (_negative) {
 		result.double_data(-std::numeric_limits<double>::infinity());
 	}
@@ -519,4 +460,95 @@ json::io::token json::io::json5_input_processor::parse_json5_number(encodings::i
 		result.double_data(-result.double_data()); 
 	}
 	return result;
+}
+
+json::io::fsm::skip_coment_and_space_fsm::skip_coment_and_space_fsm() 
+	: _state(skip_coment_and_space_fsm::state::_none){
+}
+
+void json::io::fsm::skip_coment_and_space_fsm::proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+	while (_state != state::_end) {
+		switch (_state) {
+		case state::_none:
+			none_proc(decoder, line, col);
+			break;
+		case state::_line_comment:
+			line_comment_proc(decoder, line, col);;
+			break;
+		case state::_block_comment:
+			block_comment_proc(decoder, line, col);
+			break;
+		}
+	}
+	_state = state::_none; // востанавливаем состояние машины
+}
+
+void json::io::fsm::skip_coment_and_space_fsm::none_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+	switch (decoder->current_char()){
+	case ' ':
+	case '\t':
+		col++;
+		decoder->next_char();
+		break;
+	case '\n':
+		line++;
+		col = 0;
+		decoder->next_char();
+		break;
+	case '\r':
+		col = 0;
+		decoder->next_char();
+		if(decoder->current_char() == '\n'){
+			line++;
+			decoder->next_char();
+		}
+		break;
+	case '/':
+		decoder->next_char();
+		if (decoder->current_char() == '*') {
+			_state = state::_block_comment;
+			decoder->next_char();
+		}
+		else if (decoder->current_char() == '/') {
+			_state = state::_line_comment;
+			decoder->next_char();
+		}
+		else {
+			_state = state::_end;
+		}
+		break;
+	default:
+		_state = state::_end;
+		break;
+	}
+}
+
+void json::io::fsm::skip_coment_and_space_fsm::line_comment_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+	switch (decoder->current_char()){
+	case '\n':
+	case '\r':
+		_state = state::_none;
+		break;
+	default:
+		decoder->next_char();
+		break;
+	}
+}
+
+void json::io::fsm::skip_coment_and_space_fsm::block_comment_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+	switch (decoder->current_char()){
+	case '*':
+		decoder->next_char();
+		if (decoder->current_char() == '/') {
+			decoder->next_char();
+			_state = state::_none;
+		}
+		break;
+	default:
+		if (decoder->current_char() == '\n') {
+			line++;
+		}
+		decoder->next_char();
+		break;
+	}
 }
