@@ -1,44 +1,46 @@
 #include "error.h"
 
-json::base_error::base_error(error_category category, size_t line, size_t col, const std::string & message)
+using namespace json;
+
+base_error::base_error(error_category category, size_t line, size_t col, const std::string & message)
 	: _error_cat(category), _line(line), _col(col), _message(message), err(format_message()){}
 
 
-size_t json::base_error::line() const{
+size_t base_error::line() const{
 	return _line;
 }
 
-size_t json::base_error::column() const{
+size_t base_error::column() const{
 	return _col;
 }
 
-json::error_category json::base_error::category() const{
+error_category base_error::category() const{
 	return _error_cat;
 }
 
-const char * json::base_error::what() const noexcept {
+const char * base_error::what() const noexcept {
 	return err.c_str();
 }
 
-std::string json::base_error::format_message(){
+std::string base_error::format_message(){
 	std::string result = "JSON ";
 	switch (_error_cat) {
-	case json::error_category::io_error:
+	case error_category::io_error:
 		result += "I/O error";
 		break;
-	case json::error_category::input_error:
+	case error_category::input_error:
 		result += "input error";
 		break;
-	case json::error_category::parse_error:
+	case error_category::parse_error:
 		result += "parsing error";
 		break;
-	case json::error_category::document_error:
+	case error_category::document_error:
 		result += "document error";
 		break;
-	case json::error_category::validation_error:
+	case error_category::validation_error:
 		result += "validation error";
 		break;
-	case json::error_category::value_error:
+	case error_category::value_error:
 		result += "value error";
 		break;
 	}

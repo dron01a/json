@@ -1,14 +1,21 @@
 #include "encoding.h"
 
-json::encodings::base_decoder::base_decoder(io_base::i_input_ptr_ref input) : _input(input) {
+using namespace json;
+using namespace json::io_base;
+using namespace json::encodings;
+
+base_decoder::base_decoder(i_input_ptr_ref input) : _input(input) {
 	_position = 0;
 }
 
-char32_t json::encodings::base_decoder::current_char() {
+char32_t base_decoder::current_char() {
+	if (!_buff.empty()) {
+		return _buff.back();
+	}
 	return _cur_char;
 }
 
-char32_t json::encodings::base_decoder::peek_char() {
+char32_t base_decoder::peek_char() {
 	size_t temp_pos = _position;
 	char32_t temp_cur_char = _cur_char;
 	auto temp_buff = _buff;
@@ -20,28 +27,27 @@ char32_t json::encodings::base_decoder::peek_char() {
 	return peek_char;
 }
 
-size_t json::encodings::base_decoder::position() {
+size_t base_decoder::position() {
 	return _position;
 }
 
-void json::encodings::base_decoder::clear_peek_buff() {
+void base_decoder::clear_peek_buff() {
 	_buff.clear();
 }
 
-void json::encodings::base_decoder::push_buff(char32_t c) {
+void base_decoder::push_buff(char32_t c) {
 	_buff.push_back(c);
 }
 
-bool json::encodings::base_decoder::eof() {
+bool base_decoder::eof() {
 	return _eof || _input->eof();
 }
 
-
-json::encodings::utf8_decoder::utf8_decoder(io_base::i_input_ptr_ref input) : base_decoder(input) {
+utf8_decoder::utf8_decoder(io_base::i_input_ptr_ref input) : base_decoder(input) {
 	_bom = skip_bom();
 }
 
-char32_t json::encodings::utf8_decoder::next_char(){
+char32_t utf8_decoder::next_char(){
 	if (!_buff.empty()) {
 		_cur_char = _buff.back();
 		_buff.pop_back();
@@ -52,7 +58,7 @@ char32_t json::encodings::utf8_decoder::next_char(){
 	return _cur_char;
 }
 
-void json::encodings::utf8_decoder::position(size_t pos){
+void utf8_decoder::position(size_t pos){
 	if (pos < 0) {
 		return;
 	}
@@ -62,7 +68,7 @@ void json::encodings::utf8_decoder::position(size_t pos){
 	_input->seek(pos);
 }
 
-char32_t json::encodings::utf8_decoder::read_impl(){
+char32_t utf8_decoder::read_impl(){
 	char _c = _input->next_char();
 	uint8_t first = static_cast<uint8_t>(_c);
 	if (_c == std::char_traits<char>::eof()) {
@@ -121,7 +127,7 @@ char32_t json::encodings::utf8_decoder::read_impl(){
 	return 0xFFFD;
 }
 
-bool json::encodings::utf8_decoder::skip_bom(){
+bool utf8_decoder::skip_bom(){
 	uint8_t bom[3];
 	for (size_t i = 0; i < 3; ++i) {
 		int _c = _input->next_char();
@@ -137,13 +143,13 @@ bool json::encodings::utf8_decoder::skip_bom(){
 		return true;
 	}
 	_position = 0;
-	_input->seek(0);
+	_input->seek(-3);
 	return false;
 }
 
-json::encodings::ascii_decoder::ascii_decoder(io_base::i_input_ptr_ref input) : base_decoder(input) {}
+ascii_decoder::ascii_decoder(i_input_ptr_ref input) : base_decoder(input) {}
 
-char32_t json::encodings::ascii_decoder::next_char(){
+char32_t ascii_decoder::next_char(){
 	if (!_buff.empty()) {
 		_cur_char = _buff.back();
 		_buff.pop_back();
@@ -168,7 +174,7 @@ char32_t json::encodings::ascii_decoder::next_char(){
 	return _cur_char;
 }
 
-void json::encodings::ascii_decoder::position(size_t pos){
+void ascii_decoder::position(size_t pos){
 	if (pos < 0) {
 		return;
 	}

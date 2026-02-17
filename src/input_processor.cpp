@@ -2,70 +2,76 @@
 
 #include <cctype>
 
-json::io::input_error::input_error(error_code code, size_t & line, size_t & col) : 
+using namespace json; 
+using namespace json::io;
+using namespace json::io::fsm;
+using namespace json::io_base;
+using namespace json::encodings;
+
+input_error::input_error(error_code code, size_t & line, size_t & col) : 
 	base_error(error_category::input_error, line, col, form_message(code))
 {}
 
-std::string json::io::input_error::form_message(error_code code){
+std::string input_error::form_message(error_code code){
 	switch (code){
-	case json::io::input_error::error_code::_error_token:
+	case input_error::error_code::_error_token:
 		return "error token";
-	case json::io::input_error::error_code::_invalid_string:
+	case input_error::error_code::_invalid_string:
 		return "invalid string";
-	case json::io::input_error::error_code::_invalid_number:
+	case input_error::error_code::_invalid_number:
 		return "invalid number";
-	case json::io::input_error::error_code::_invalid_number_format:
+	case input_error::error_code::_invalid_number_format:
 		return "invalid number format";
-	case json::io::input_error::error_code::_invalid_escape:
+	case input_error::error_code::_invalid_escape:
 		return "escape processing error";
-	case json::io::input_error::error_code::_invalid_unicode_char:
+	case input_error::error_code::_invalid_unicode_char:
 		return "unicode char processing error";
-	case json::io::input_error::error_code::_invalid_unicode_low_pair:
+	case input_error::error_code::_invalid_unicode_low_pair:
 		return "unicode low pair processing error";
-	case json::io::input_error::error_code::_literal_error:
+	case input_error::error_code::_literal_error:
 		return "invalid literal";
 	}
 }
 
-json::io::token::token() : _type(token_type::_none) {}
+token::token() : _type(token_type::_none) {}
 
-json::io::token::token(const token & other) {
+token::token(const token & other) {
 	copy_data(other);
 }
 
-json::io::token::token(token_type t) : _type(t) {}
+token::token(token_type t) : _type(t) {}
 
-json::io::token::token(double data) : _type(token_type::_number) {
+token::token(double data) : _type(token_type::_number) {
 	_data._double_data = data;
 }
 
-json::io::token::token(const char * data) : _type(token_type::_string) {
+token::token(const char * data) : _type(token_type::_string) {
 	new (&_data._string_data) std::string(data);
 }
 
-json::io::token::token(const std::string & data) : _type(token_type::_string) {
+token::token(const std::string & data) : _type(token_type::_string) {
 	new (&_data._string_data) std::string(data);
 }
 
-json::io::token::~token() {
+token::~token() {
 	if (_type == token_type::_string) {
 		_data._string_data.~basic_string();
 	}
 }
 
-json::io::token & json::io::token::operator=(const token & other) {
+token & token::operator=(const token & other) {
 	copy_data(other);
 	return *this;
 }
 
-std::string json::io::token::string_data() const {
+std::string token::string_data() const {
 	if (_type == token_type::_string) {
 		return _data._string_data;
 	}
 	return "";
 }
 
-void json::io::token::string_data(std::string data){
+void token::string_data(std::string data){
 	if (_type != token_type::_string) {
 		new (&_data._string_data) std::string(data);
 		_type = token_type::_string;
@@ -75,14 +81,14 @@ void json::io::token::string_data(std::string data){
 	}
 }
 
-double json::io::token::double_data() const {
+double token::double_data() const {
 	if (_type == token_type::_number) {
 		return _data._double_data;
 	}
 	return 0.0;
 }
 
-void json::io::token::double_data(double data){
+void token::double_data(double data){
 	if (_type == token_type::_string) {
 		_data._string_data.~basic_string();
 	}
@@ -90,11 +96,11 @@ void json::io::token::double_data(double data){
 	_data._double_data = data;
 }
 
-json::io::token_type json::io::token::type() const {
+token_type token::type() const {
 	return _type;
 }
 
-void json::io::token::type(token_type t) {
+void token::type(token_type t) {
 	_type = t;
 	switch (_type) {
 	case token_type::_number:
@@ -106,7 +112,7 @@ void json::io::token::type(token_type t) {
 	}
 }
 
-void json::io::token::copy_data(const token & other) {
+void token::copy_data(const token & other) {
 	_type = other._type;
 	_data._double_data = 0;
 	switch (other._type) {
@@ -119,20 +125,20 @@ void json::io::token::copy_data(const token & other) {
 	}
 }
 
-json::io::base_input_processor::base_input_processor() : _line(0), _col(0){}
+base_input_processor::base_input_processor() : _line(0), _col(0){}
 
-json::io::base_input_processor::base_input_processor(const base_input_processor & bip) 
+base_input_processor::base_input_processor(const base_input_processor & bip) 
 	: _line(bip._line), _col(bip._col){}
 
-size_t json::io::base_input_processor::line(){
+size_t base_input_processor::line(){
 	return _line;
 }
 
-size_t json::io::base_input_processor::col(){
+size_t base_input_processor::col(){
 	return _col;
 }
 	
-json::io::token json::io::base_input_processor::parse_string(encodings::i_decoder_ptr_ref _decoder, char quote_char){
+token base_input_processor::parse_string(i_decoder_ptr_ref _decoder, char quote_char){
 	std::string result_string;
 	result_string.reserve(64);
 	char32_t _c = _decoder->next_char();
@@ -140,7 +146,7 @@ json::io::token json::io::base_input_processor::parse_string(encodings::i_decode
 	while (_c != quote_char) {
 		switch (_c){
 		case std::char_traits<char>::eof():
-			throw json::io::input_error(input_error::error_code::_invalid_string, _line, _col);
+			throw input_error(input_error::error_code::_invalid_string, _line, _col);
 		case '\\':
 			result_string += parse_escape(_decoder);
 			break;
@@ -154,7 +160,7 @@ json::io::token json::io::base_input_processor::parse_string(encodings::i_decode
 	return token(result_string);
 }
 
-std::string json::io::base_input_processor::parse_escape(encodings::i_decoder_ptr_ref _decoder) {
+std::string base_input_processor::parse_escape(i_decoder_ptr_ref _decoder) {
 	std::string result;
 	char32_t _c = _decoder->next_char();
 	_col++;
@@ -175,7 +181,7 @@ std::string json::io::base_input_processor::parse_escape(encodings::i_decoder_pt
 	return result;
 }
 
-std::string json::io::base_input_processor::parse_unicode(encodings::i_decoder_ptr_ref _decoder){
+std::string base_input_processor::parse_unicode(i_decoder_ptr_ref _decoder){
 	std::string result;
 	uint32_t code = parse_unicode_pair(_decoder);
 	if (code >= 0xD800 && code <= 0xDBFF) { // проверяем на наличие сурогатной пары
@@ -206,7 +212,7 @@ std::string json::io::base_input_processor::parse_unicode(encodings::i_decoder_p
 	return result;
 }
 
-uint32_t json::io::base_input_processor::parse_unicode_pair(encodings::i_decoder_ptr_ref _decoder){
+uint32_t base_input_processor::parse_unicode_pair(i_decoder_ptr_ref _decoder){
 	uint32_t result_code;
 	for (size_t i = 0; i < 4; ++i) {
 		char c = _decoder->next_char();
@@ -230,7 +236,7 @@ uint32_t json::io::base_input_processor::parse_unicode_pair(encodings::i_decoder
 	return result_code;
 }
 
-json::io::token json::io::base_input_processor::parse_number(encodings::i_decoder_ptr_ref _decoder){
+token base_input_processor::parse_number(i_decoder_ptr_ref _decoder){
 	std::string result_digit;
 	char cur_char = _decoder->current_char();
 	if (cur_char == '-') {
@@ -274,7 +280,7 @@ json::io::token json::io::base_input_processor::parse_number(encodings::i_decode
 	}
 }
 
-json::io::token json::io::base_input_processor::parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, token_type type){
+token base_input_processor::parse_literal(i_decoder_ptr_ref _decoder, const char * literal_str, token_type type){
 	char cur_char = _decoder->current_char();
 	while (*literal_str != '\0') {
 		if (cur_char != *literal_str) {
@@ -286,11 +292,11 @@ json::io::token json::io::base_input_processor::parse_literal(encodings::i_decod
 	return token(type);
 }
 
-json::io::json_input_processor::json_input_processor() : base_input_processor() {}
+json_input_processor::json_input_processor() : base_input_processor() {}
 
-json::io::json_input_processor::json_input_processor(const json_input_processor & jip) : base_input_processor(jip) {}
+json_input_processor::json_input_processor(const json_input_processor & jip) : base_input_processor(jip) {}
 
-json::io::token json::io::json_input_processor::next_token(encodings::i_decoder_ptr_ref _decoder){
+token json_input_processor::next_token(i_decoder_ptr_ref _decoder){
 	_decoder->next_char();
 	_scs_fsm.proc(_decoder, _line, _col);
 	char c = _decoder->next_char();
@@ -318,12 +324,11 @@ json::io::token json::io::json_input_processor::next_token(encodings::i_decoder_
 	}
 }
 
-json::io::json5_input_processor::json5_input_processor() : base_input_processor() {}
+json5_input_processor::json5_input_processor() : base_input_processor() {}
 
-json::io::json5_input_processor::json5_input_processor(const json_input_processor & jip) 
-	: base_input_processor(jip) {}
+json5_input_processor::json5_input_processor(const json_input_processor & jip) : base_input_processor(jip) {}
 
-json::io::token json::io::json5_input_processor::next_token(encodings::i_decoder_ptr_ref _decoder){
+token json5_input_processor::next_token(i_decoder_ptr_ref _decoder){
 	_decoder->next_char();
 	_scs_fsm.proc(_decoder, _line, _col);
 	char cur_char = _decoder->current_char();
@@ -342,11 +347,10 @@ json::io::token json::io::json5_input_processor::next_token(encodings::i_decoder
 	case ']': return token(token_type::_close_square_brt);
 	case ':': return token(token_type::_colon);
 	case ',': return token(token_type::_comma);
-	case '.': return parse_dor_number(_decoder);
 	case '\"': return parse_string(_decoder, '\"');
 	case '\'': return parse_string(_decoder, '\'');
 	case '0': return parse_digit_or_hex(_decoder);
-	case '1': case '2': case '3':
+	case '.': case '1': case '2': case '3':
 	case '4': case '5': case '6': 
 	case '7': case '8': case '9': 
 		return parse_number(_decoder);
@@ -354,7 +358,7 @@ json::io::token json::io::json5_input_processor::next_token(encodings::i_decoder
 	};
 }
 
-json::io::token json::io::json5_input_processor::parse_digit_or_hex(encodings::i_decoder_ptr_ref _decoder) {
+token json5_input_processor::parse_digit_or_hex(i_decoder_ptr_ref _decoder) {
 	char cur_char = _decoder->peek_char();
 	if (cur_char == 'x' || cur_char == 'X') {
 		_decoder->next_char(); // пропуск х
@@ -363,11 +367,7 @@ json::io::token json::io::json5_input_processor::parse_digit_or_hex(encodings::i
 	return parse_number(_decoder);
 }
 
-json::io::token json::io::json5_input_processor::parse_dor_number(encodings::i_decoder_ptr_ref _decoder) {
-	return parse_number(_decoder);
-}
-
-json::io::token json::io::json5_input_processor::parse_hex_number(encodings::i_decoder_ptr_ref _decoder){
+token json5_input_processor::parse_hex_number(i_decoder_ptr_ref _decoder){
 	std::string hex = "0x";
 	char cur_char = _decoder->next_char();
 	while (std::isxdigit(cur_char)) {
@@ -384,7 +384,7 @@ json::io::token json::io::json5_input_processor::parse_hex_number(encodings::i_d
 	}
 }
 
-json::io::token json::io::json5_input_processor::parse_infinity(encodings::i_decoder_ptr_ref _decoder, bool _negative){
+token json5_input_processor::parse_infinity(i_decoder_ptr_ref _decoder, bool _negative){
 	_decoder->next_char();
 	token result = parse_literal(_decoder, "nfinity", token_type::_number);
 	if (_negative) {
@@ -396,7 +396,7 @@ json::io::token json::io::json5_input_processor::parse_infinity(encodings::i_dec
 	return result;
 }
 
-json::io::token json::io::json5_input_processor::parse_nan(encodings::i_decoder_ptr_ref _decoder, bool _negative){
+token json5_input_processor::parse_nan(i_decoder_ptr_ref _decoder, bool _negative){
 	token result = parse_literal(_decoder, "NaN", token_type::_number);
 	if (_negative) {
 		result.double_data(-std::numeric_limits<double>::quiet_NaN());
@@ -407,7 +407,7 @@ json::io::token json::io::json5_input_processor::parse_nan(encodings::i_decoder_
 	return result;
 }
 
-json::io::token json::io::json5_input_processor::parse_literal_or_indentifier(encodings::i_decoder_ptr_ref _decoder){
+token json5_input_processor::parse_literal_or_indentifier(i_decoder_ptr_ref _decoder){
 	std::string indetifier_string;
 	char cur_char = _decoder->current_char();
 	while (std::isalnum(cur_char) || cur_char == '_' || cur_char == '&') {
@@ -434,7 +434,7 @@ json::io::token json::io::json5_input_processor::parse_literal_or_indentifier(en
 	return token(indetifier_string);
 }
 
-json::io::token json::io::json5_input_processor::parse_json5_number(encodings::i_decoder_ptr_ref _decoder){
+token json5_input_processor::parse_json5_number(i_decoder_ptr_ref _decoder){
 	token result;
 	bool is_negtive = false;
 	if (_decoder->current_char() == '-'){
@@ -462,11 +462,11 @@ json::io::token json::io::json5_input_processor::parse_json5_number(encodings::i
 	return result;
 }
 
-json::io::fsm::skip_coment_and_space_fsm::skip_coment_and_space_fsm() 
+skip_coment_and_space_fsm::skip_coment_and_space_fsm() 
 	: _state(skip_coment_and_space_fsm::state::_none){
 }
 
-void json::io::fsm::skip_coment_and_space_fsm::proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+void skip_coment_and_space_fsm::proc(i_decoder_ptr_ref decoder, size_t & line, size_t & col){
 	while (_state != state::_end) {
 		switch (_state) {
 		case state::_none:
@@ -483,7 +483,7 @@ void json::io::fsm::skip_coment_and_space_fsm::proc(encodings::i_decoder_ptr_ref
 	_state = state::_none; // востанавливаем состояние машины
 }
 
-void json::io::fsm::skip_coment_and_space_fsm::none_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+void skip_coment_and_space_fsm::none_proc(i_decoder_ptr_ref decoder, size_t & line, size_t & col){
 	switch (decoder->current_char()){
 	case ' ':
 	case '\t':
@@ -523,7 +523,7 @@ void json::io::fsm::skip_coment_and_space_fsm::none_proc(encodings::i_decoder_pt
 	}
 }
 
-void json::io::fsm::skip_coment_and_space_fsm::line_comment_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+void skip_coment_and_space_fsm::line_comment_proc(i_decoder_ptr_ref decoder, size_t & line, size_t & col){
 	switch (decoder->current_char()){
 	case '\n':
 	case '\r':
@@ -535,7 +535,7 @@ void json::io::fsm::skip_coment_and_space_fsm::line_comment_proc(encodings::i_de
 	}
 }
 
-void json::io::fsm::skip_coment_and_space_fsm::block_comment_proc(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+void skip_coment_and_space_fsm::block_comment_proc(i_decoder_ptr_ref decoder, size_t & line, size_t & col){
 	switch (decoder->current_char()){
 	case '*':
 		decoder->next_char();

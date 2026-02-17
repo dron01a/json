@@ -261,12 +261,12 @@ namespace json {
 
 		value_type _type = value_type::_null; // тип
 
-		static constexpr size_t buffer_size = 
-			 sizeof(bool) > sizeof(double) ? sizeof(bool) :
-				   sizeof(double) > sizeof(std::string) ? sizeof(double) :
-				   sizeof(std::string) > sizeof(json::json_array) ? sizeof(std::string) :
-				   sizeof(json::json_array) > sizeof(json::json_object) ?
-							sizeof(json::json_array) : sizeof(json::json_object);
+		static constexpr size_t buffer_size =
+			sizeof(bool) > sizeof(double) ? sizeof(bool) :
+			sizeof(double) > sizeof(std::string) ? sizeof(double) :
+			sizeof(std::string) > sizeof(json::json_array) ? sizeof(std::string) :
+			sizeof(json::json_array) > sizeof(json::json_object) ?
+			sizeof(json::json_array) : sizeof(json::json_object);
 
 		static constexpr size_t align_size =
 			alignof(bool) > alignof(double) ? alignof(bool) :

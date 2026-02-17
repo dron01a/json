@@ -213,9 +213,6 @@ namespace json {
 			// обработка дестичного или шеснадцатиричного числа
 			token parse_digit_or_hex(encodings::i_decoder_ptr_ref _decoder);
 
-			// обработка числа после точки
-			token parse_dor_number(encodings::i_decoder_ptr_ref _decoder);
-
 			// обработка hex-чисел
 			token parse_hex_number(encodings::i_decoder_ptr_ref _decoder);
 

@@ -21,7 +21,7 @@ namespace json {
 				_stream_is_bad,
 			};
 
-			io_error(error_code code, size_t & line, size_t & col, std::string file_name = "");
+			io_error(error_code code, size_t line, size_t col, std::string file_name = "");
 
 		private:
 			std::string form_message(error_code code, std::string file_name);

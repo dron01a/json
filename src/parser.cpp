@@ -1,45 +1,47 @@
 #include "parser.h"
 
+using namespace json;
 using namespace json::io;
 using namespace json::io_base;
+using namespace json::impl;
 using namespace json::encodings;
 
-json::parse_config::parse_config(encoding_mode enc, sinax_mode sm, error_mode em) :
+parse_config::parse_config(encoding_mode enc, sinax_mode sm, error_mode em) :
 	_encoding(enc), _sinax_mode(sm), _error_mode(em) {}
 
-json::parse_config::encoding_mode & json::parse_config::encoding() {
+parse_config::encoding_mode & parse_config::encoding() {
 	return _encoding;
 }
 
-json::parse_config::sinax_mode & json::parse_config::sinax() {
+parse_config::sinax_mode & parse_config::sinax() {
 	return _sinax_mode;
 }
 
-json::parse_config::error_mode & json::parse_config::error_halding() {
+parse_config::error_mode & parse_config::error_halding() {
 	return _error_mode;
 }
 
-json::parse_config json::standart() {
+parse_config standart() {
 	return parse_config();
 }
 
-json::parse_error::parse_error(error_code code, size_t line, size_t col)
-	: base_error(json::error_category::parse_error, line, col, form_message(code)) {}
+parse_error::parse_error(error_code code, size_t line, size_t col)
+	: base_error(error_category::parse_error, line, col, form_message(code)) {}
 
-std::string json::parse_error::form_message(error_code code) {
+std::string parse_error::form_message(error_code code) {
 	switch (code) {
-	case json::parse_error::error_code::_error_token:
+	case parse_error::error_code::_error_token:
 		return "error token";
-	case json::parse_error::error_code::_invalid_value:
+	case parse_error::error_code::_invalid_value:
 		return "invalid value";
-	case json::parse_error::error_code::_invalid_array_value:
+	case parse_error::error_code::_invalid_array_value:
 		return "invalid array value";
-	case json::parse_error::error_code::_invalid_object:
+	case parse_error::error_code::_invalid_object:
 		return "invalid object";
 	}
 }
 
-json::impl::dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config & conf){
+dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config & conf){
 	switch (conf.encoding()) {
 	case parse_config::encoding_mode::ascii:
 		_decoder = std::make_unique<ascii_decoder>(input);
@@ -64,15 +66,15 @@ json::impl::dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config
 	}
 }
 
-json::parse_result json::impl::dom_parser_impl::parse(){
+parse_result dom_parser_impl::parse(){
 	parse_result result;
 	_tokenizer = std::make_unique<tokenizer>(_input_proc, _decoder, result.errors);
 	_tokenizer->next();
 	try {
 		result.json_val = parse_json_value(result.errors);
 	}
-	catch (json::base_error & err) {
-		result.errors.push_back(std::make_unique<json::base_error>(err));
+	catch (base_error & err) {
+		result.errors.push_back(std::make_unique<base_error>(err));
 	}
 	if (result.errors.size() == 0) {
 		result.valid = true;
@@ -80,11 +82,11 @@ json::parse_result json::impl::dom_parser_impl::parse(){
 	return result;
 }
 
-void json::impl::dom_parser_impl::set_collect_mode(bool val){
+void dom_parser_impl::set_collect_mode(bool val){
 	_collect_mode = val;
 }
 
-json::json_value json::impl::dom_parser_impl::parse_json_value(std::vector<std::unique_ptr<base_error>> & errors){
+json_value dom_parser_impl::parse_json_value(std::vector<std::unique_ptr<base_error>> & errors){
 	token cur_token = _tokenizer->last();
 	switch (cur_token.type()) {
 	case token_type::_open_curly_brt:
@@ -107,8 +109,8 @@ json::json_value json::impl::dom_parser_impl::parse_json_value(std::vector<std::
 	collect_or_throw(errors, parse_error::error_code::_invalid_value);
 }
 
-json::json_value json::impl::dom_parser_impl::parse_array(std::vector<std::unique_ptr<base_error>> & errors){
-	json::json_value result(json::value_type::_array);
+json_value dom_parser_impl::parse_array(std::vector<std::unique_ptr<base_error>> & errors){
+	json_value result(value_type::_array);
 	bool _parse = true;
 	_tokenizer->next();
 	while (_parse && _tokenizer->last().type() != token_type::_close_square_brt) {
@@ -131,8 +133,8 @@ json::json_value json::impl::dom_parser_impl::parse_array(std::vector<std::uniqu
 	return result;
 }
 
-json::json_value json::impl::dom_parser_impl::parse_object(std::vector<std::unique_ptr<base_error>> & errors){
-	json::json_value result(json::value_type::_object);
+json_value dom_parser_impl::parse_object(std::vector<std::unique_ptr<base_error>> & errors){
+	json_value result(value_type::_object);
 	_tokenizer->next();
 	while (_tokenizer->last().type() != token_type::_close_curly_brt) {
 		if (_tokenizer->last().type() == token_type::_string) {
@@ -156,7 +158,7 @@ json::json_value json::impl::dom_parser_impl::parse_object(std::vector<std::uniq
 	return result;
 }
 
-void json::impl::dom_parser_impl::collect_or_throw(std::vector<std::unique_ptr<base_error>>& errors, parse_error::error_code code){
+void dom_parser_impl::collect_or_throw(std::vector<std::unique_ptr<base_error>>& errors, parse_error::error_code code){
 	if (!_collect_mode) {
 		throw parse_error(code, _input_proc->line(), _input_proc->col());
 	}
