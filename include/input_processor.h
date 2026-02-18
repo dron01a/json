@@ -43,6 +43,86 @@ namespace json {
 
 			};
 
+			// конечный автомат для обраотки чисел 
+			class digit_parse_fsm {
+			public:
+				// конструтор класса
+				digit_parse_fsm();
+			
+				// функция запуска автомата
+				std::pair<double, bool> run(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col);
+
+			private:
+				
+				// возвращает тип симовола
+				size_t char_type(char c);
+
+				// оработка 
+
+				// состояния
+				enum class state {
+					_none = 0, // ничего
+					_sing, // + - 
+					_digit, // собираем числа 
+					_dot, // обработка ввыражения после точки
+					_fract, // часть числа после точки
+					_exp_s, // занк экспоненты 
+					_exp, // экспонента 
+					_error, // ошибка
+			    	_end, // выход из автомата
+				};
+
+				// таблица перходов
+				static constexpr state table[8][6] = { 
+					//        + -		.			0 - 9				e E	   другие символы      , \0
+	/* none */		{ state::_sing, state::_dot, state::_digit, state::_exp_s, state::_error, state::_end },
+	/* sign */		{ state::_error, state::_dot, state::_digit, state::_exp_s, state::_error, state::_end },
+	/* digit */		{ state::_error, state::_dot, state::_digit, state::_exp_s, state::_error, state::_end },
+	/* dot */		{ state::_error, state::_error, state::_fract, state::_exp_s, state::_error, state::_end },
+	/* fract */		{ state::_error, state::_error, state::_fract, state::_exp_s, state::_error, state::_end },
+	/* exp_s */		{ state::_exp, state::_error, state::_exp, state::_error, state::_error, state::_end },
+	/* exponent */	{ state::_error, state::_error, state::_exp, state::_error, state::_error, state::_end },
+	/* error */		{ state::_end, state::_end, state::_end, state::_end, state::_end, state::_end },
+				};
+
+				state _state; // текущее состояние
+			};
+
+			class hex_parse_fsm {
+			public:
+				// конструтор класса
+				hex_parse_fsm();
+
+				// обработка
+				std::pair<double, bool> run(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col);
+			private:
+
+				// возвращает тип симовола
+				size_t char_type(char c);
+
+				// оработка 
+
+				// состояния
+				enum class state {
+					_zero = 0, // начальная позиция 
+					_prefix = 1, // x X
+					_digit, // 0 - 9, a-f, A-F
+					_error, // ошибка
+					_end, // выход из автомата
+				};
+
+				// таблица перходов
+				static constexpr state table[4][4] = {
+					//		x X			0 - 9, a-f, A-F	  другие символы	     , \0
+	/* zero */      { state::_prefix,	state::_error,	 state::_error,		state::_end },
+	/* prefix */    { state::_error,	state::_digit,	 state::_error,		state::_end },
+	/* digit */		{ state::_error,	state::_digit,	 state::_error,		state::_end },
+	/* error */		{ state::_end,		state::_end,	 state::_end,		state::_end },
+				};
+
+				state _state; // текущее состояние
+			};
+
 		};
 
 		// класс ошибки получаемой информации
@@ -177,6 +257,8 @@ namespace json {
 			// обработка числа 
 			token parse_literal(encodings::i_decoder_ptr_ref _decoder, const char * literal_str, token_type type);
 
+			fsm::digit_parse_fsm _dp_fsm; // конечный автомат для парсинга чисел
+
 			size_t _line; // линия 
 			size_t _col; // столбец
 
@@ -214,7 +296,7 @@ namespace json {
 			token parse_digit_or_hex(encodings::i_decoder_ptr_ref _decoder);
 
 			// обработка hex-чисел
-			token parse_hex_number(encodings::i_decoder_ptr_ref _decoder);
+		//	token parse_hex_number(encodings::i_decoder_ptr_ref _decoder);
 
 			// обработка бесконечности 
 			token parse_infinity(encodings::i_decoder_ptr_ref _decoder, bool _negative);
@@ -225,6 +307,7 @@ namespace json {
 			// обработка идендификатора или литерала
 			token parse_literal_or_indentifier(encodings::i_decoder_ptr_ref _decoder);
 
+			fsm::hex_parse_fsm _hex_fsm; // автомат для парсига hex-чисел
 			fsm::skip_coment_and_space_fsm _scs_fsm; // конечный автомат для пропуска коментариев
 		};
 

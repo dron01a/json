@@ -20,6 +20,8 @@ std::string input_error::form_message(error_code code){
 		return "invalid string";
 	case input_error::error_code::_invalid_number:
 		return "invalid number";
+	case input_error::error_code::_invalis_hex_number:
+		return "invalid hex number";
 	case input_error::error_code::_invalid_number_format:
 		return "invalid number format";
 	case input_error::error_code::_invalid_escape:
@@ -173,7 +175,7 @@ std::string base_input_processor::parse_escape(i_decoder_ptr_ref _decoder) {
 	case 'n': result += '\n'; break;
 	case 'r': result += '\r'; break;
 	case 't': result += '\t'; break;
-	case 'u':
+	case 'u': result += parse_unicode(_decoder);
 		break;
 	default:
 		throw input_error(input_error::error_code::_invalid_escape, _line, _col);
@@ -237,47 +239,11 @@ uint32_t base_input_processor::parse_unicode_pair(i_decoder_ptr_ref _decoder){
 }
 
 token base_input_processor::parse_number(i_decoder_ptr_ref _decoder){
-	std::string result_digit;
-	char cur_char = _decoder->current_char();
-	if (cur_char == '-') {
-		result_digit += cur_char;
-		cur_char = _decoder->next_char();
-		if (!std::isdigit(cur_char) && cur_char != '.') {
-			input_error(input_error::error_code::_invalid_number, _line, _col);
-		}
+	auto res = _dp_fsm.run(_decoder, _line, _col);
+	if (res.second) {
+		return token(res.first);
 	}
-	while (std::isdigit(cur_char)) {
-		result_digit += cur_char;
-		cur_char = _decoder->next_char();
-	}
-	if (cur_char == '.') {
-		result_digit += cur_char;
-		cur_char = _decoder->next_char();
-		while (std::isdigit(cur_char)) {
-			result_digit += cur_char;
-			cur_char = _decoder->next_char();
-		}
-	}
-	if (cur_char == 'e' || cur_char == 'E') {
-		result_digit += cur_char;
-		cur_char = _decoder->next_char();
-		if (cur_char == '+' || cur_char == '-') {
-			result_digit += cur_char;
-			cur_char = _decoder->next_char();
-		}
-		while (std::isdigit(cur_char)) {
-			result_digit += cur_char;
-			cur_char = _decoder->next_char();
-		}
-	}
-	try {
-		_decoder->push_buff(static_cast<char32_t>(cur_char)); // возвращает не подошедший символ в буфер
-		_col += result_digit.size();
-		return token(std::stod(result_digit.c_str()));
-	}
-	catch (std::exception & e) {
-		throw input_error(input_error::error_code::_invalid_number, _line, _col);
-	}
+	throw input_error(input_error::error_code::_invalid_number, _line, _col);
 }
 
 token base_input_processor::parse_literal(i_decoder_ptr_ref _decoder, const char * literal_str, token_type type){
@@ -340,7 +306,8 @@ token json5_input_processor::next_token(i_decoder_ptr_ref _decoder){
 		return parse_literal_or_indentifier(_decoder);
 	}
 	switch (cur_char) {
-	case std::char_traits<char>::eof(): return token(token_type::_end);
+	case std::char_traits<char>::eof(): 
+		return token(token_type::_end);
 	case '{': return token(token_type::_open_curly_brt);
 	case '}': return token(token_type::_close_curly_brt);
 	case '[': return token(token_type::_open_square_brt);
@@ -359,30 +326,33 @@ token json5_input_processor::next_token(i_decoder_ptr_ref _decoder){
 }
 
 token json5_input_processor::parse_digit_or_hex(i_decoder_ptr_ref _decoder) {
-	char cur_char = _decoder->peek_char();
+	char cur_char = _decoder->next_char();
 	if (cur_char == 'x' || cur_char == 'X') {
-		_decoder->next_char(); // пропуск х
-		return parse_hex_number(_decoder);
+		auto res = _hex_fsm.run(_decoder, _line, _col);
+		if (res.second) {
+			return token(res.first);
+		}
+		throw input_error(input_error::error_code::_invalis_hex_number, _line, _col);
 	}
 	return parse_number(_decoder);
 }
 
-token json5_input_processor::parse_hex_number(i_decoder_ptr_ref _decoder){
-	std::string hex = "0x";
-	char cur_char = _decoder->next_char();
-	while (std::isxdigit(cur_char)) {
-		_col++;
-		hex += cur_char;
-		cur_char = _decoder->next_char();
-	}
-	_decoder->push_buff(cur_char);
-	try {
-		return token(static_cast<double>(std::stoull(hex, nullptr, 16)));
-	}
-	catch (std::exception & err) {
-		throw input_error(input_error::error_code::_invalis_hex_number, _line, _col);
-	}
-}
+//token json5_input_processor::parse_hex_number(i_decoder_ptr_ref _decoder){
+//	std::string hex = "0x";
+//	char cur_char = _decoder->next_char();
+//	while (std::isxdigit(cur_char)) {
+//		_col++;
+//		hex += cur_char;
+//		cur_char = _decoder->next_char();
+//	}
+//	_decoder->push_buff(cur_char);
+//	try {
+//		return token(static_cast<double>(std::stoull(hex, nullptr, 16)));
+//	}
+//	catch (std::exception & err) {
+//		throw input_error(input_error::error_code::_invalis_hex_number, _line, _col);
+//	}
+//}
 
 token json5_input_processor::parse_infinity(i_decoder_ptr_ref _decoder, bool _negative){
 	_decoder->next_char();
@@ -449,6 +419,7 @@ token json5_input_processor::parse_json5_number(i_decoder_ptr_ref _decoder){
 	case '0': 
 		result = parse_digit_or_hex(_decoder); 
 		break;
+	case '.':
 	case '1': case '2': case '3':
 	case '4': case '5': case '6':
 	case '7': case '8': case '9':
@@ -485,6 +456,10 @@ void skip_coment_and_space_fsm::proc(i_decoder_ptr_ref decoder, size_t & line, s
 
 void skip_coment_and_space_fsm::none_proc(i_decoder_ptr_ref decoder, size_t & line, size_t & col){
 	switch (decoder->current_char()){
+	case std::char_traits<char>::eof():
+		_state = state::_end;
+		decoder->push_buff(std::char_traits<char>::eof());
+		break;
 	case ' ':
 	case '\t':
 		col++;
@@ -525,6 +500,9 @@ void skip_coment_and_space_fsm::none_proc(i_decoder_ptr_ref decoder, size_t & li
 
 void skip_coment_and_space_fsm::line_comment_proc(i_decoder_ptr_ref decoder, size_t & line, size_t & col){
 	switch (decoder->current_char()){
+	case std::char_traits<char>::eof():
+		_state = state::_end;
+		break;
 	case '\n':
 	case '\r':
 		_state = state::_none;
@@ -551,4 +529,123 @@ void skip_coment_and_space_fsm::block_comment_proc(i_decoder_ptr_ref decoder, si
 		decoder->next_char();
 		break;
 	}
+}
+
+digit_parse_fsm::digit_parse_fsm() : _state(state::_none) { }
+
+std::pair<double, bool> digit_parse_fsm::run(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+	std::string _digit_string;
+	bool valid = true;
+	_state = table[(size_t)_state][char_type(decoder->current_char())];
+	while (_state != state::_end) {
+		switch (_state) {
+		case json::io::fsm::digit_parse_fsm::state::_sing:
+		case json::io::fsm::digit_parse_fsm::state::_digit:
+		case json::io::fsm::digit_parse_fsm::state::_dot:
+		case json::io::fsm::digit_parse_fsm::state::_fract:
+		case json::io::fsm::digit_parse_fsm::state::_exp_s:
+		case json::io::fsm::digit_parse_fsm::state::_exp:
+			_digit_string += decoder->current_char();
+			break;
+		case json::io::fsm::digit_parse_fsm::state::_error:
+			valid = false;
+			break;
+		}
+		decoder->next_char();
+		_state = table[(size_t)_state][char_type(decoder->current_char())];
+	}
+	decoder->push_buff(decoder->current_char());
+	_state = state::_none;
+	col += _digit_string.size();
+	if (valid) {
+		return std::make_pair(std::stod(_digit_string), true);
+	}
+	return std::make_pair(0, false);
+}
+
+size_t digit_parse_fsm::char_type(char c){
+	switch (c){
+	case '+':
+	case '-':
+		return 0;
+	case '.': 
+		return 1;
+	case '0':
+	case '1': case '2': case '3':
+	case '4': case '5': case '6':
+	case '7': case '8': case '9':
+		return 2;
+	case 'e':
+	case 'E':
+		return 3;
+	case ']':
+	case '}':
+	case ' ':
+	case '\t':
+	case ',':
+	case std::char_traits<char>::eof():
+		return 5;
+	}
+	return 4;
+}
+
+hex_parse_fsm::hex_parse_fsm() : _state(state::_zero) { }
+
+std::pair<double, bool> hex_parse_fsm::run(encodings::i_decoder_ptr_ref decoder, size_t & line, size_t & col){
+	std::string _digit_string = "0";
+	bool valid = true;
+	_state = table[(size_t)_state][char_type(decoder->current_char())];
+	while (_state != state::_end) {
+		switch (_state) {
+		case json::io::fsm::hex_parse_fsm::state::_prefix:
+		case json::io::fsm::hex_parse_fsm::state::_digit:
+			_digit_string += decoder->current_char();
+			break;
+		case json::io::fsm::hex_parse_fsm::state::_error:
+			valid = false;
+			break;
+		}
+		decoder->next_char();
+		_state = table[(size_t)_state][char_type(decoder->current_char())];
+	}
+	decoder->push_buff(decoder->current_char());
+	_state = state::_zero;
+	col += _digit_string.size();
+	if (valid) {
+		return std::make_pair(static_cast<double>(std::stoull(_digit_string, nullptr, 16)), true);
+	}
+	return std::make_pair(0, false);
+}
+
+size_t hex_parse_fsm::char_type(char c){
+	switch (c) {
+	case 'x':
+	case 'X':
+		return 0;
+	case 'a':
+	case 'b':
+	case 'c':
+	case 'd':
+	case 'e':
+	case 'f':
+	case 'A':
+	case 'B':
+	case 'C':
+	case 'D':
+	case 'E':
+	case 'F':
+	case '0':
+	case '1': case '2': case '3':
+	case '4': case '5': case '6':
+	case '7': case '8': case '9':
+		return 1;
+	case ']':
+	case '}':
+	case ' ':
+	case '\t':
+	case ',':
+	case std::char_traits<char>::eof():
+		return 3;
+	}
+	return 2;
 }
