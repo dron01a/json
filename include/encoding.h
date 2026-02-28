@@ -37,13 +37,6 @@ namespace json {
 			virtual bool eof() = 0;
 		};
 
-		// интерфейс энкодера
-		class i_encoder {
-		public:
-			virtual ~i_encoder() = default;
-			virtual void encode(io_base::i_output_ptr _dest, const std::string & _string) = 0;
-		};
-
 		// базовый декодер 
 		class base_decoder : public i_decoder {
 		public:
@@ -82,6 +75,37 @@ namespace json {
 			explicit ascii_decoder(io_base::i_input_ptr_ref input);
 			char32_t next_char();
 			void position(size_t pos);
+		};
+
+		// интерфейс энкодера
+		class i_encoder {
+		public:
+			virtual ~i_encoder() = default;
+			virtual void encode_string(const std::string & string) = 0;
+			virtual void encode_code(char32_t code) = 0;
+			virtual void add_bom() = 0;
+		};
+
+		// знкодер utf8
+		class utf8_encoder : public i_encoder {
+		public:
+			utf8_encoder(io_base::i_output_ptr_ref dest);
+			void encode_code(char32_t code);
+			void encode_string(const std::string & string);
+			void add_bom();
+		private:
+			io_base::i_output_ptr_ref _output; // куда записываем данные
+		};
+
+		// знкодер ascii
+		class ascii_encoder : public i_encoder {
+		public:
+			ascii_encoder(io_base::i_output_ptr_ref dest);
+			void encode_code(char32_t code);
+			void encode_string(const std::string & string);
+			void add_bom() {};
+		private:
+			io_base::i_output_ptr_ref _output; // куда записываем данные
 		};
 
 		using i_decoder_ptr = std::unique_ptr<i_decoder>;

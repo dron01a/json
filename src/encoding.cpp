@@ -51,7 +51,7 @@ char32_t utf8_decoder::next_char(){
 	if (!_buff.empty()) {
 		_cur_char = _buff.back();
 		_buff.pop_back();
-		_position++;
+	//	_position++;
 		return _cur_char;
 	}
 	_cur_char = read_impl();
@@ -68,25 +68,29 @@ void utf8_decoder::position(size_t pos){
 	_input->seek(pos);
 }
 
-char32_t utf8_decoder::read_impl(){
-	char _c = _input->next_char();
-	uint8_t first = static_cast<uint8_t>(_c);
-	if (_c == std::char_traits<char>::eof()) {
+char32_t utf8_decoder::read_impl() {
+	int _c = _input->next_char();
+	if (_c == std::char_traits<char>::eof() || _input->eof()) {
 		_eof = true;
 		return static_cast<char32_t>(_c);
 	}
-	if (first <= 0x80) {
+	uint8_t first = static_cast<uint8_t>(_c);
+	_position++;
+	if (first <= 0x7F) {
 		return static_cast<char32_t>(first);
 	}
-	int lenght = 1;
+	int lenght = 0;
 	if ((first & 0xE0) == 0xC0) {
 		lenght = 2;
 	}
-	if ((first & 0xF0) == 0xE0) {
+	else if ((first & 0xF0) == 0xE0) {
 		lenght = 3;
 	}
-	if ((first & 0xF8) == 0xF0) {
+	else  if ((first & 0xF8) == 0xF0) {
 		lenght = 4;
+	}
+	else {
+		return 0xFFFD;
 	}
 	uint8_t bytes[4] = { first };
 	for (size_t i = 1; i < lenght; ++i) {
@@ -97,34 +101,22 @@ char32_t utf8_decoder::read_impl(){
 		bytes[i] = static_cast<uint8_t>(_c);
 	}
 	_position += lenght;
-	if ((first & 0xE0) == 0xC0) {
-		uint8_t second = static_cast<uint8_t>(bytes[1]);
-		if ((second & 0xC0) != 0x80) {
-			return 0xFFFD;
-		}
-		uint32_t code = (first & 0x1F) << 6 | (second & 0x3F);
-		return code;
+	uint32_t code;
+	switch (lenght) {
+	case 2:
+		code = (first & 0x1F) << 6 | (bytes[1] & 0x3F);
+		break;
+	case 3:
+		code = (first & 0x0F) << 12 | (bytes[1] & 0x3F) << 6 | (bytes[2] & 0x3F);
+		break;
+	case 4:
+		code = (first & 0x07) << 18 | (bytes[1] & 0x3F) << 12 | (bytes[2] & 0x3F) << 6 | (bytes[3] & 0x3F);
+		break;
 	}
-	if ((first & 0xF0) == 0xE0) {
-		uint8_t second = static_cast<uint8_t>(bytes[1]);
-		uint8_t third = static_cast<uint8_t>(bytes[2]);
-		if ((second & 0xC0) != 0x80 || (third & 0xC0) != 0x80) {
-			return 0xFFFD;
-		}
-		uint32_t code = (first & 0x0F) << 12 | (second & 0x3F) << 6 | (third & 0x3F);
-		return code;
+	if ((lenght == 2 && code < 0x80) || (lenght == 3 && code < 0x800) || (lenght == 4 && code < 0x10000)) {
+		return 0xFFFD;
 	}
-	if ((first & 0xF8) == 0xF0) {
-		uint8_t second = static_cast<uint8_t>(bytes[1]);
-		uint8_t third = static_cast<uint8_t>(bytes[2]);
-		uint8_t fourth = static_cast<uint8_t>(bytes[3]);
-		if ((second & 0xC0) != 0x80 || (third & 0xC0) != 0x80 || (fourth & 0xC0) != 0x80) {
-			return 0xFFFD;
-		}
-		uint32_t code = (first & 0x07) << 18 | (second & 0x3F) << 12 | (third & 0x3F) << 6 | (fourth & 0x3F);
-		return code;
-	}
-	return 0xFFFD;
+	return static_cast<char32_t>(code);
 }
 
 bool utf8_decoder::skip_bom(){
@@ -181,4 +173,80 @@ void ascii_decoder::position(size_t pos){
 	_input->seek(-(int)_position);
 	_position = pos;
 	_input->seek(pos);
+}
+
+utf8_encoder::utf8_encoder(i_output_ptr_ref dest) : _output(dest) {}
+
+void json::encodings::utf8_encoder::encode_code(char32_t code) {
+	if (code > 0x10FFFF | (code >= 0xD800 && code <= 0xDFFF)) {
+		code = 0xFFFD;
+	}
+	if (code <= 0x7F) {
+		_output->out_data(static_cast<char>(code));
+	}
+	else if (code <= 0x7FF) {
+		_output->out_data(static_cast<char>(0xC0 | (code >> 6) & 0x1F));
+		_output->out_data(static_cast<char>(0x80 | code & 0x3F));
+	}
+	else if (code <= 0xFFFF) {
+		_output->out_data(static_cast<char>(0xE0 | (code >> 12) & 0x0F));
+		_output->out_data(static_cast<char>(0x80 | (code >> 6) & 0x3F));
+		_output->out_data(static_cast<char>(0x80 | code & 0x3F));
+	}
+	else {
+		_output->out_data(static_cast<char>(0xF0 | (code >> 18) & 0x07));
+		_output->out_data(static_cast<char>(0x80 | (code >> 12) & 0x3F));
+		_output->out_data(static_cast<char>(0x80 | (code >> 6) & 0x3F));
+		_output->out_data(static_cast<char>(0x80 | code & 0x3F));
+	}
+}
+
+void json::encodings::utf8_encoder::encode_string(const std::string & string) {
+	for (size_t i = 0; i < string.size(); ++i) {
+		uint8_t first = string[i];
+		char32_t code = 0;
+		if (first <= 0x7F) {
+			code = first;
+		}
+		else if ((first & 0xE0) <= 0xC0) {
+			i++;
+			code = (first & 0x1F) << 6 | (string[i] & 0x3F);
+		}
+		else if ((first & 0xF0) == 0xE0) {
+			i += 2;
+			code = (first & 0x0F) << 12 | (string[i - 1] & 0x3F) << 6 | (string[i] & 0x3F);
+		}
+		else if  ((first & 0xF8) == 0xF0) {
+			i += 3;
+			code = (first & 0x07) << 18 | (string[i-2] & 0x3F) << 12 | (string[i-1] & 0x3F) << 6 | (string[i] & 0x3F);
+		}
+		else {
+			code = 0xFFFD;
+		}
+		encode_code(code);
+	}
+}
+
+void json::encodings::utf8_encoder::add_bom() {
+	_output->out_data('\xEF');
+	_output->out_data('\xBB');
+	_output->out_data('\xBF');
+}
+
+json::encodings::ascii_encoder::ascii_encoder(io_base::i_output_ptr_ref dest) : _output(dest) {}
+
+void json::encodings::ascii_encoder::encode_code(char32_t code) {
+	if (code <= 127) {
+		if (code >= 32 || code == '\t' || code == '\r' || code == '\n') {
+			_output->out_data(static_cast<char>(code));
+			return;
+		}
+	}
+	_output->out_data('?'); // добавить таблицу заменяемых символов ???
+}
+
+void json::encodings::ascii_encoder::encode_string(const std::string & string){
+	for (char32_t c : string) {
+		encode_code(c);
+	}
 }
