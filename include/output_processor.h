@@ -16,10 +16,7 @@ namespace json {
 		public:
 
 			// конструктор 
-			i_output_processor(encodings::i_encoder_ptr_ref dest,
-							   bool format = false,
-							   size_t indent_size = 2,
-							   size_t space_size = 1);
+			i_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
 
 			// деструктор  
 			virtual ~i_output_processor() = default;
@@ -69,6 +66,12 @@ namespace json {
 			// устанавливает символ пробела
 			void set_space(char _char);
 
+			// устанавливает колличество сиволов отступа
+			void set_indent_size(size_t count);
+
+			// устанавливает колличество сиволов пробела
+			void set_space_size(size_t count);
+
 		protected:
 
 			// экранирование строк
@@ -80,6 +83,8 @@ namespace json {
 			size_t _space_size; // колличество символов пробела
 			size_t _indent_level; // уровень вложенности элемента
 			bool _format; // флаг форматирования вывода
+			bool _need_comma; // нужна или не нужна запятая 
+			bool _after_key;
 			encodings::i_encoder_ptr_ref _encoder; // энкодер
 		};
 
@@ -87,10 +92,7 @@ namespace json {
 		class json_output_processor : public i_output_processor {
 		public:
 			// конструктор 
-			explicit json_output_processor(encodings::i_encoder_ptr_ref dest, 
-										   bool format = false,
-										   size_t indent_size = 2, 
-										   size_t space_size = 1);
+			explicit json_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
 			void write_bom() override;
 			void write_null() override;
 			void write_digit(double data) override;
@@ -104,6 +106,12 @@ namespace json {
 		
 		private:
 
+			// проверка перед вставкой элемента 
+			void before_value();
+
+			// проверка после вставки элемента 
+			void end_value();
+
 			// пишет запятую
 			void write_comma();
 			
@@ -113,7 +121,7 @@ namespace json {
 		};
 
 		// выодит json как xml
-		class xml_output_processor : i_output_processor {
+		class xml_output_processor : public i_output_processor {
 
 		};
 
