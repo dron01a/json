@@ -295,9 +295,6 @@ namespace json {
 			// обработка дестичного или шеснадцатиричного числа
 			token parse_digit_or_hex(encodings::i_decoder_ptr_ref _decoder);
 
-			// обработка hex-чисел
-		//	token parse_hex_number(encodings::i_decoder_ptr_ref _decoder);
-
 			// обработка бесконечности 
 			token parse_infinity(encodings::i_decoder_ptr_ref _decoder, bool _negative);
 
@@ -312,15 +309,15 @@ namespace json {
 		};
 
 		// класс обработки входа yalm 
-		class yalm_input_processor : public base_input_processor {
-		public:
-			//конструктор класса
-			yalm_input_processor();
-			yalm_input_processor(const json_input_processor & jip);
+		//class yalm_input_processor : public base_input_processor {
+		//public:
+		//	//конструктор класса
+		//	yalm_input_processor();
+		//	yalm_input_processor(const json_input_processor & jip);
 
-			// получение токена
-			token next_token(encodings::i_decoder_ptr_ref _decoder);
-		};
+		//	// получение токена
+		//	token next_token(encodings::i_decoder_ptr_ref _decoder);
+		//};
 
 		using i_input_processor_ptr = std::unique_ptr<i_input_processor>;
 		using i_input_processor_ptr_ref = std::unique_ptr<i_input_processor>&;

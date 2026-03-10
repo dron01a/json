@@ -153,7 +153,25 @@ token base_input_processor::parse_string(i_decoder_ptr_ref _decoder, char quote_
 			result_string += parse_escape(_decoder);
 			break;
 		default:
-			result_string += _c;
+			//result_string += _c;
+			if (_c <= 0x7F) {
+				result_string += static_cast<char>(_c);
+			}
+			else if (_c <= 0x7FF) {
+				result_string += static_cast<char>(0xC0 | (_c >> 6) & 0x1F);
+				result_string += static_cast<char>(0x80 | _c & 0x3F);
+			}
+			else if (_c <= 0xFFFF) {
+				result_string += static_cast<char>(0xE0 | (_c >> 12) & 0x0F);
+				result_string += static_cast<char>(0x80 | (_c >> 6) & 0x3F);
+				result_string += static_cast<char>(0x80 | _c & 0x3F);
+			}
+			else if (_c <= 0x10FFFF) {
+				result_string += static_cast<char>(0xF0 | (_c >> 18) & 0x07);
+				result_string += static_cast<char>(0x80 | (_c >> 12) & 0x3F);
+				result_string += static_cast<char>(0x80 | (_c >> 6) & 0x3F);
+				result_string += static_cast<char>(0x80 | _c & 0x3F);
+			}
 			break;
 		}
 		_c = _decoder->next_char();
@@ -336,23 +354,6 @@ token json5_input_processor::parse_digit_or_hex(i_decoder_ptr_ref _decoder) {
 	}
 	return parse_number(_decoder);
 }
-
-//token json5_input_processor::parse_hex_number(i_decoder_ptr_ref _decoder){
-//	std::string hex = "0x";
-//	char cur_char = _decoder->next_char();
-//	while (std::isxdigit(cur_char)) {
-//		_col++;
-//		hex += cur_char;
-//		cur_char = _decoder->next_char();
-//	}
-//	_decoder->push_buff(cur_char);
-//	try {
-//		return token(static_cast<double>(std::stoull(hex, nullptr, 16)));
-//	}
-//	catch (std::exception & err) {
-//		throw input_error(input_error::error_code::_invalis_hex_number, _line, _col);
-//	}
-//}
 
 token json5_input_processor::parse_infinity(i_decoder_ptr_ref _decoder, bool _negative){
 	_decoder->next_char();

@@ -202,28 +202,58 @@ void json::encodings::utf8_encoder::encode_code(char32_t code) {
 }
 
 void json::encodings::utf8_encoder::encode_string(const std::string & string) {
+	uint8_t first;
+	char32_t code;
 	for (size_t i = 0; i < string.size(); ++i) {
-		uint8_t first = string[i];
-		char32_t code = 0;
-		if (first <= 0x7F) {
-			code = first;
+		switch (string[i]) {
+		case '\"':
+			_output->out_data("\\\"");
+			break;
+		case '\\':
+			_output->out_data("\\\\");
+			break;
+		case '/':
+			_output->out_data("\\/");
+			break;
+		case '\b':
+			_output->out_data("\\b");
+			break;
+		case '\f':
+			_output->out_data("\\f");
+			break;
+		case '\n':
+			_output->out_data("\\n");
+			break;
+		case '\r':
+			_output->out_data("\\r");
+			break;
+		case '\t':
+			_output->out_data("\\t");
+			break;
+		default:
+			first = string[i];
+			code = 0;
+			if (first <= 0x7F) {
+				code = first;
+			}
+			else if ((first & 0xE0) <= 0xC0) {
+				i++;
+				code = (first & 0x1F) << 6 | (string[i] & 0x3F);
+			}
+			else if ((first & 0xF0) == 0xE0) {
+				i += 2;
+				code = (first & 0x0F) << 12 | (string[i - 1] & 0x3F) << 6 | (string[i] & 0x3F);
+			}
+			else if ((first & 0xF8) == 0xF0) {
+				i += 3;
+				code = (first & 0x07) << 18 | (string[i - 2] & 0x3F) << 12 | (string[i - 1] & 0x3F) << 6 | (string[i] & 0x3F);
+			}
+			else {
+				code = 0xFFFD;
+			}
+			encode_code(code);
+			break;
 		}
-		else if ((first & 0xE0) <= 0xC0) {
-			i++;
-			code = (first & 0x1F) << 6 | (string[i] & 0x3F);
-		}
-		else if ((first & 0xF0) == 0xE0) {
-			i += 2;
-			code = (first & 0x0F) << 12 | (string[i - 1] & 0x3F) << 6 | (string[i] & 0x3F);
-		}
-		else if  ((first & 0xF8) == 0xF0) {
-			i += 3;
-			code = (first & 0x07) << 18 | (string[i-2] & 0x3F) << 12 | (string[i-1] & 0x3F) << 6 | (string[i] & 0x3F);
-		}
-		else {
-			code = 0xFFFD;
-		}
-		encode_code(code);
 	}
 }
 
@@ -245,8 +275,36 @@ void json::encodings::ascii_encoder::encode_code(char32_t code) {
 	_output->out_data('?'); // добавить таблицу заменяемых символов ???
 }
 
-void json::encodings::ascii_encoder::encode_string(const std::string & string){
-	for (char32_t c : string) {
-		encode_code(c);
+void json::encodings::ascii_encoder::encode_string(const std::string & string) {
+	for (size_t i = 0; i < string.size(); ++i) {
+		switch (string[i]) {
+		case '\"':
+			_output->out_data("\\\"");
+			break;
+		case '\\':
+			_output->out_data("\\\\");
+			break;
+		case '/':
+			_output->out_data("\\/");
+			break;
+		case '\b':
+			_output->out_data("\\b");
+			break;
+		case '\f':
+			_output->out_data("\\f");
+			break;
+		case '\n':
+			_output->out_data("\\n");
+			break;
+		case '\r':
+			_output->out_data("\\r");
+			break;
+		case '\t':
+			_output->out_data("\\t");
+			break;
+		default:
+			encode_code(string[i]);
+			break;
+		}
 	}
 }
