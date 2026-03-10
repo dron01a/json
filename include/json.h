@@ -5,6 +5,7 @@
 #include "json_value.h"
 #include "parser.h"
 #include "io_base.h"
+#include "writer.h"
 
 namespace json {
 
@@ -27,6 +28,20 @@ namespace json {
 
 		// запускает парсинг
 		static void parse(json::parse_result & res, json::io_base::i_input_ptr_ref input, parse_config & config);
+	};
+
+	// класс для записи данных 
+	class writer {
+	public:
+		// запись в файл 
+		static write_result to_file(const json_value & val, const char * file_name, write_config config = format());
+
+		// запись в поток 
+		static write_result to_stream(const json_value & val, std::ostream & stream, write_config config = format());
+
+		// запись в строку
+		static write_result to_string(const json_value & val, std::string & dest, write_config config = format());
+
 	};
 
 }

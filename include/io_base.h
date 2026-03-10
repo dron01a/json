@@ -19,6 +19,9 @@ namespace json {
 				_file_not_found,
 				_string_is_empty,
 				_stream_is_bad,
+				_invalid_file,
+				_invalid_string,
+				_invalid_stream,
 			};
 
 			io_error(error_code code, size_t line, size_t col, std::string file_name = "");
@@ -31,8 +34,8 @@ namespace json {
 		class i_input {
 		public:
 			virtual ~i_input() = default;
-			virtual std::char_traits<char>::char_type next_char() = 0;
-			virtual std::char_traits<char>::char_type last_char() = 0;
+			virtual int next_char() = 0;
+			virtual int last_char() = 0;
 			virtual void seek(int n) = 0;
 			virtual bool ready() = 0;
 			virtual bool eof() = 0;
@@ -49,10 +52,10 @@ namespace json {
 			~file_input();
 
 			// возвращает следующий символ
-			std::char_traits<char>::char_type next_char();
+			int next_char();
 
 			// возвращает предыдущий символ
-			std::char_traits<char>::char_type last_char();
+			int last_char();
 
 			// делает шаг назад
 			void seek(int n);
@@ -65,7 +68,7 @@ namespace json {
 
 		private:
 			std::ifstream file;
-			char cur_char;
+			int cur_char;
 		};
 
 		// ввод из строки
@@ -79,10 +82,10 @@ namespace json {
 			~string_input();
 
 			// возвращает предыдущий символ
-			std::char_traits<char>::char_type next_char();
+			int next_char();
 
 			// возвращает текущий символ
-			std::char_traits<char>::char_type last_char();
+			int last_char();
 
 			// устанавливает позицию
 			void seek(int n);
@@ -108,10 +111,10 @@ namespace json {
 			~stream_input();
 
 			// возвращает предыдущий символ
-			std::char_traits<char>::char_type next_char();
+			int next_char();
 
 			// возвращает текущий символ
-			std::char_traits<char>::char_type last_char();
+			int last_char();
 
 			// делает шаг назад
 			void seek(int n);
@@ -124,7 +127,7 @@ namespace json {
 
 		private:
 			std::istream * stream;
-			char cur_char;
+			int cur_char;
 		};
 
 		// интерфейс вывода данных
@@ -133,6 +136,7 @@ namespace json {
 			virtual ~i_output() = default;
 			virtual void out_data(char data) = 0;
 			virtual void out_data(const char * data) = 0;
+			virtual void out_data(char32_t data) = 0;
 			virtual bool ready() = 0;
 		};
 
@@ -148,6 +152,7 @@ namespace json {
 			// запись данных
 			void out_data(const char * data);
 			void out_data(char data);
+			void out_data(char32_t data);
 
 			// проверка готовности 
 			bool ready();
@@ -164,6 +169,7 @@ namespace json {
 			// запись данных
 			void out_data(const char * data);
 			void out_data(char data);
+			void out_data(char32_t data);
 
 			// проверка готовности 
 			bool ready();
@@ -182,6 +188,7 @@ namespace json {
 			// запись данных
 			void out_data(const char * data);
 			void out_data(char data);
+			void out_data(char32_t data);
 
 			// проверка готовности 
 			bool ready();

@@ -88,24 +88,6 @@ namespace json {
 		std::vector<std::unique_ptr<base_error>> errors; // ошибки полученные при записи
 	};
 
-	namespace io {
-	
-		// ошибка записи
-		class write_error : public base_error {
-		public:
-			enum class error_code {
-				_invalid_file,
-				_invalis_string,
-				_invalid_stream,
-			};
-
-			write_error(error_code code, size_t line, size_t col);
-		private:
-			std::string form_message(error_code code);
-		};
-
-	} // io
-
 	namespace impl {
 
 		using namespace io;

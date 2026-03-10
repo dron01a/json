@@ -8,19 +8,20 @@ io_error::io_error(error_code code, size_t line, size_t col, std::string file_na
 }
 
 std::string io_error::form_message(error_code code, std::string file_name) {
-	std::string _result;
 	switch (code) {
 	case io_error::error_code::_file_not_found:
-		_result += "file " + file_name + " not found";
-		break;
+		return "file " + file_name + " not found";
 	case io_error::error_code::_string_is_empty:
-		_result += "string is empty";
-		break;
+		return "string is empty";
 	case io_error::error_code::_stream_is_bad:
-		_result += "bad thread";
-		break;
+		return "bad thread";
+	case io_error::error_code::_invalid_file:
+		return "invalid file: " + file_name;
+	case io_error::error_code::_invalid_string:
+		return "invalid string";
+	case io_error::error_code::_invalid_stream:
+		return "invalid stream";
 	};
-	return _result;
 }
 
 file_input::file_input(const std::string & file_name) {
@@ -37,7 +38,7 @@ file_input::~file_input() {
 	}
 }
 
-std::char_traits<char>::char_type file_input::next_char() {
+int file_input::next_char() {
 	cur_char = file.get();
 	if (file.eof()) {
 		cur_char = std::char_traits<char>::eof();
@@ -45,7 +46,7 @@ std::char_traits<char>::char_type file_input::next_char() {
 	return cur_char;
 }
 
-std::char_traits<char>::char_type file_input::last_char() {
+int file_input::last_char() {
 	return cur_char;
 }
 
@@ -71,26 +72,27 @@ string_input::string_input(const char * string) {
 
 string_input::~string_input(){}
 
-std::char_traits<char>::char_type string_input::next_char() {
-	if (position < str.size()) {
+int string_input::next_char() {
+	if (position < str.size() && position != -1) {
 		return str[position++];
 	}
+	position = -1;
 	return std::char_traits<char>::eof();
 }
 
-std::char_traits<char>::char_type string_input::last_char() {
-	if (position < str.size() && position > 0) {
-		return str[position - 1];
+int string_input::last_char() {
+	if (position != -1) {
+		return str[position];
 	}
 	if (position == 0) {
 		return str[0];
 	}
-	return str[str.size() - 1];
+	return std::char_traits<char>::eof();
 }
 
 void string_input::seek(int n) {
-	if (n <  str.size() - 1) {
-		position = n;
+	if (position +  n <  str.size() - 1) {
+		position += n;
 	}
 }
 
@@ -99,7 +101,7 @@ bool string_input::ready() {
 }
 
 bool string_input::eof(){
-	return !(position < str.size());
+	return !(position < str.size() - 1);
 }
 
 stream_input::stream_input(std::istream & stream) {
@@ -110,7 +112,7 @@ stream_input::~stream_input() {
 	stream = nullptr;
 }
 
-std::char_traits<char>::char_type stream_input::next_char() {
+int stream_input::next_char() {
 	*stream >> cur_char;
 	if (stream->eof()) {
 		cur_char = std::char_traits<char>::eof();
@@ -118,7 +120,7 @@ std::char_traits<char>::char_type stream_input::next_char() {
 	return cur_char;
 }
 
-std::char_traits<char>::char_type stream_input::last_char() {
+int stream_input::last_char() {
 	return cur_char;
 }
 
@@ -154,6 +156,10 @@ void file_output::out_data(char data){
 	_desc << data;
 }
 
+void json::io_base::file_output::out_data(char32_t data){
+	_desc << data;
+}
+
 bool file_output::ready() {
 	return _desc.good();
 }
@@ -168,6 +174,10 @@ void string_output::out_data(const char * data) {
 
 void string_output::out_data(char data){
 	*_desc += data;
+}
+
+void json::io_base::string_output::out_data(char32_t data){
+	_desc += data;
 }
 
 bool string_output::ready() {
@@ -187,6 +197,10 @@ void stream_output::out_data(const char * data) {
 }
 
 void stream_output::out_data(char data) {
+	*_desc << data;
+}
+
+void json::io_base::stream_output::out_data(char32_t data){
 	*_desc << data;
 }
 
