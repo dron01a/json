@@ -153,28 +153,48 @@ namespace json {
 		// для получения булевого значения 
 		bool & as_bool();
 		bool & as_bool() const;
-		void as_bool(bool & val);
 
 		// для получения числового значения
 		double & as_num();
 		double & as_num() const;
-		void as_num(double num);
 
 		// для получения строки
 		std::string & as_string();
 		std::string & as_string() const;
-		void as_string(const std::string & string);
-		void as_string(const char * string);
 
 		// для получения массива
 		json_array * as_array();
 		json_array * as_array() const;
-		void as_array(json_array array);
 
 		// для получения объекта
 		json_object * as_object();
 		json_object * as_object() const;
-		void as_object(json_object object);
+
+		// функции присвоения
+		void assign(bool & val);
+		void assign(char с);
+		void assign(int num);
+		void assign(double num);
+		void assign(const std::string & string);
+		void assign(const char * string);
+		void assign(json_array array);
+		void assign(json_object object);
+
+		// оператор доступа
+		json_value & operator[](size_t index);
+		const json_value & operator[](size_t index) const;
+		json_value & operator[](const char * key);
+		const json_value & operator[](const char * key) const;
+		json_value & operator[](const std::string & key);
+		const json_value & operator[](const std::string & key) const;
+
+		// оператор доступа с проверкой
+		json_value & at(size_t index);
+		const json_value & at(size_t index) const;
+		json_value & at(const char * key);
+		const json_value & at(const char * key) const;
+		json_value & at(const std::string & string);
+		const json_value & at(const std::string & string) const;
 
 		// возвращает занчение по имени
 		jv_pointer find(const std::string & key);
@@ -222,6 +242,12 @@ namespace json {
 
 		// возвращает общее число элементов
 		size_t item_count();
+
+		// возвращает колличество элементов в json_value
+		size_t size() const noexcept;
+
+		// возвращает true если пустой
+		bool empty() const noexcept; 
 
 		// возвращает итератор на начало объекта/массива 
 		json_value_iterator begin();

@@ -340,24 +340,12 @@ bool & json_value::as_bool() const {
 	return const_cast<json_value*>(this)->as_bool();
 }
 
-void json_value::as_bool(bool & val) {
-	clear_storage();
-	_type = value_type::_bool;
-	construct<bool>(val);
-}
-
 double & json_value::as_num() {
 	return *get_ptr<double>();
 }
 
 double & json_value::as_num() const {
 	return const_cast<json_value*>(this)->as_num();
-}
-
-void json_value::as_num(double num) {
-	clear_storage();
-	_type = value_type::_number;
-	construct<double>(num);
 }
 
 std::string & json_value::as_string() {
@@ -368,30 +356,12 @@ std::string & json_value::as_string() const {
 	return const_cast<json_value*>(this)->as_string();
 }
 
-void json_value::as_string(const std::string & string) {
-	clear_storage();
-	_type = value_type::_string;
-	construct<std::string>(string);
-}
-
-void json_value::as_string(const char * string) {
-	clear_storage();
-	_type = value_type::_string;
-	construct<std::string>(string);
-}
-
 json_array * json_value::as_array() {
 	return get_ptr<json_array>();
 }
 
 json_array * json_value::as_array() const {
 	return const_cast<json_value*>(this)->as_array();
-}
-
-void json_value::as_array(json_array array) {
-	clear_storage();
-	_type = value_type::_array;
-	construct<json_array>(array);
 }
 
 json_object * json_value::as_object() {
@@ -402,10 +372,162 @@ json_object * json_value::as_object() const {
 	return const_cast<json_value*>(this)->as_object();
 }
 
-void json_value::as_object(json_object object) {
+void json::json_value::assign(bool & val) {
+	clear_storage();
+	_type = value_type::_bool;
+	construct<bool>(val);
+}
+
+void json::json_value::assign(char c) {
+	clear_storage();
+	_type = value_type::_bool;
+	construct<char>(c);
+}
+
+void json::json_value::assign(int num) {
+	clear_storage();
+	_type = value_type::_number;
+	construct<int>(num);
+}
+
+void json::json_value::assign(double num) {
+	clear_storage();
+	_type = value_type::_number;
+	construct<double>(num);
+}
+
+void json::json_value::assign(const std::string & string) {
+	clear_storage();
+	_type = value_type::_string;
+	construct<std::string>(string);
+}
+
+void json::json_value::assign(const char * string) {
+	clear_storage();
+	_type = value_type::_string;
+	construct<std::string>(string);
+}
+
+void json::json_value::assign(json_array array){
+	clear_storage();
+	_type = value_type::_array;
+	construct<json_array>(array);
+}
+
+void json::json_value::assign(json_object object) {
 	clear_storage();
 	_type = value_type::_object;
 	construct<json_object>(object);
+}
+
+json_value & json::json_value::operator[](size_t index) {
+	if (is_null()) {
+		type(value_type::_array);
+	}
+	if (!is_array()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	json_array * arr = get_ptr<json_array>();
+	if (index >= arr->size()) {
+		arr->resize(index + 1);
+	}
+	return (*arr)[index];
+}
+
+const json_value & json::json_value::operator[](size_t index) const {
+	if (!is_array()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	const json_array * arr = get_ptr<json_array>();
+	if (index >= arr->size()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	return (*arr)[index];
+}
+
+json_value & json::json_value::operator[](const char * key) {
+	if (is_null()) {
+		type(value_type::_object);
+	}
+	if (!is_object()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	json_object * obj = get_ptr<json_object>();
+	return (*obj)[key];
+}
+
+const json_value & json::json_value::operator[](const char * key) const {
+	if (!is_object()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	const json_object * obj = get_ptr<json_object>();
+	auto res = obj->find(key);
+	if (res == obj->end()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	return res->second;
+}
+
+json_value & json::json_value::operator[](const std::string & key) {
+	return this->operator[](key.c_str());
+}
+
+const json_value & json::json_value::operator[](const std::string & key) const {
+	return this->operator[](key.c_str());
+}
+
+json_value & json::json_value::at(size_t index){
+	if (!is_array()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	json_array * arr = get_ptr<json_array>();
+	if (index >= arr->size()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	return (*arr)[index];
+}
+
+const json_value & json::json_value::at(size_t index) const {
+	if (!is_array()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	const json_array * arr = get_ptr<json_array>();
+	if (index >= arr->size()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	return (*arr)[index];
+}
+
+json_value & json::json_value::at(const char * key) {
+	if (!is_object()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	json_object * obj = get_ptr<json_object>();
+	auto res = obj->find(key);
+	if (res == obj->end()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	return res->second;
+}
+
+const json_value & json::json_value::at(const char * key) const {
+	if (!is_object()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	const json_object * obj = get_ptr<json_object>();
+	const auto res = obj->find(key);
+	if (res == obj->end()) {
+		throw; // to-do добавить бросок ошибок
+	}
+	return res->second;
+}
+
+json_value & json::json_value::at(const std::string & key) {
+	at(key);
+}
+
+const json_value & json::json_value::at(const std::string & key) const {
+	at(key);
 }
 
 jv_pointer json_value::find(const std::string & name) {
@@ -629,6 +751,34 @@ size_t json_value::item_count(){
 		break;
 	}
 	return count;
+}
+
+size_t json::json_value::size() const noexcept {
+	switch (_type) {
+	case json::value_type::_null:
+		return 0;
+	case json::value_type::_string:
+		return get_ptr<std::string>()->size();
+	case json::value_type::_array:
+		return get_ptr<json_array>()->size();
+	case json::value_type::_object:
+		return get_ptr<json_object>()->size();
+	}
+	return 1;
+}
+
+bool json::json_value::empty() const noexcept {
+	switch (_type) {
+	case json::value_type::_null:
+		return true;
+	case json::value_type::_string:
+		return get_ptr<std::string>()->empty();
+	case json::value_type::_array:
+		return get_ptr<json_array>()->empty();
+	case json::value_type::_object:
+		return get_ptr<json_object>()->empty();
+	}
+	return false;
 }
 
 json_value_iterator json_value::begin(){
