@@ -1,6 +1,153 @@
 #include "json_value.h"
 
 using namespace json;
+using namespace json::impl;
+
+json::impl::json_storage::json_storage() : _type (value_type::_null) {}
+
+json::impl::json_storage::json_storage(const json_storage & other){
+	copy_data(other);
+}
+
+json::impl::json_storage::json_storage(json_storage && other) {
+	move_data(std::move(other));
+}
+
+json_storage & json_storage::operator=(const json_storage & other) {
+	if (*this != other) {
+		copy_data(other);
+	}
+	return *this;
+}
+
+json_storage & json_storage::operator=(json_storage && other) {
+	if (*this != other) {
+		move_data(std::move(other));
+	}
+	return *this;
+}
+
+bool json_storage::operator==(const json_storage & other) {
+	if (other._type == _type) {
+		switch (_type) {
+		case json::value_type::_null:
+			return true;
+		case json::value_type::_bool:
+			return other.get<bool>() == get<bool>();
+		case json::value_type::_number:
+			return other.get<double>() == get<double>();
+		case json::value_type::_string:
+			return other.get<std::string>() == get<std::string>();
+		case json::value_type::_array:
+			return other.get<json_array>() == get<json_array>();
+		case json::value_type::_object:
+			return other.get<json_object>() == get<json_object>();
+		}
+	}
+	return false;
+}
+
+bool json_storage::operator!=(const json_storage & other) {
+	return !(*this == other);
+}
+
+json::impl::json_storage::~json_storage() {
+	clear();
+}
+
+void json_storage::clear() noexcept {
+	switch (_type) {
+	case value_type::_string:
+		get<std::string>()->~basic_string();
+		break;
+	case value_type::_array:
+		get<json_array>()->~vector();
+		break;
+	case value_type::_object:
+		get<json_object>()->~map();
+		break;
+	}
+	_type = value_type::_null;
+}
+
+value_type json_storage::type() const{
+	return _type;
+}
+
+void json_storage::type(value_type new_type){
+	clear();
+	_type = new_type;
+	switch (_type) {
+	case value_type::_bool:
+		set<bool>(false);
+		break;
+	case value_type::_number:
+		set<double>(0);
+		break;
+	case value_type::_string:
+		set<std::string>("");
+		break;
+	case value_type::_array:
+		set<json_array>();
+		break;
+	case value_type::_object:
+		set<json_object>();
+		break;
+	}
+}
+
+size_t json_storage::aligned() const noexcept {
+	return align_size;
+}
+
+size_t json_storage::size() const noexcept {
+	return buffer_size;
+}
+
+void json_storage::copy_data(const json_storage & other) {
+	switch (other._type) {
+	case value_type::_bool:
+		set<bool>(*other.get<bool>());
+		break;
+	case value_type::_number:
+		set<double>(*other.get<double>());
+		break;
+	case value_type::_string:
+		set<std::string>(*other.get<std::string>());
+		break;
+	case value_type::_array:
+		set<json_array>(*other.get<json_array>());
+		break;
+	case value_type::_object:
+		set<json_object>(*other.get<json_object>());
+		break;
+	}
+}
+
+void json_storage::move_data(json_storage && other) {
+	switch (other._type) {
+	case value_type::_bool:
+		set<bool>(std::move(*other.get<bool>()));
+		break;
+	case value_type::_number:
+		set<double>(std::move(*other.get<double>()));
+		break;
+	case value_type::_string:
+		set<std::string>(std::move(*other.get<std::string>()));
+		other.get<std::string>()->~basic_string();
+		break;
+	case value_type::_array:
+		set<json_array>(std::move(*other.get<json_array>()));
+		other.get<json_array>()->~vector();
+		break;
+	case value_type::_object:
+		set<json_object>(std::move(*other.get<json_object>()));
+		other.get<json_object>()->~map();
+		break;
+	}
+	other._type = value_type::_null;
+}
+
 
 json_value_iterator::json_value_iterator() : _type(_iterator_type::_empty) {}
 
@@ -230,110 +377,72 @@ bool json_value_iterator::is_mutable() const {
 	return _type == _iterator_type::_array || _type == _iterator_type::_object;
 }
 
-void json_value::clear_storage() noexcept {
-	switch (_type) {
-	case value_type::_string:
-		get_ptr<std::string>()->~basic_string();
-		break;
-	case value_type::_array:
-		get_ptr<json_array>()->~vector();
-		break;
-	case value_type::_object:
-		get_ptr<json_object>()->~map();
-		break;
-	}
-	_type = value_type::_null;
+json::json_value::json_value() {
+	_storage = std::make_unique<json_storage>();
 }
 
-json_value::json_value(value_type type){
-	_type = type;
-	switch (_type){
-	case value_type::_bool:
-		construct<bool>(false);
-		break;
-	case value_type::_number:
-		construct<double>(0);
-		break;
-	case value_type::_string:
-		construct<std::string>("");
-		break;
-	case value_type::_array:
-		construct<json_array>();
-		break;
-	case value_type::_object:
-		construct<json_object>();
-		break;
-	}
+json_value::json_value(value_type type) : json_value() {
+	_storage->type(type);
 }
 
-json_value::json_value(bool data) {
-	construct<bool>(data);
-	_type = value_type::_bool;
+json_value::json_value(bool data) : json_value() {
+	_storage->set<bool>(data);
 }
 
-json_value::json_value(double data) {
-	construct<double>(data);
-	_type = value_type::_number;
+json_value::json_value(double data) : json_value() {
+	_storage->set<double>(data);
 }
 
-json_value::json_value(const std::string & string) {
-	construct<std::string>(string);
-	_type = value_type::_string;
+json_value::json_value(const std::string & string) : json_value() {
+	_storage->set<std::string>(string);
 }
 
-json_value::json_value(const char * string) {
-	construct<std::string>(string);
-	_type = value_type::_string;
+json_value::json_value(const char * string) : json_value() {
+	_storage->set<std::string>(string);
 }
 
-json_value::json_value(json_array data) {
-	construct<json_array>(data);
-	_type = value_type::_array;
+json_value::json_value(json_array data) : json_value() {
+	_storage->set<json_array>(data);
 }
 
-json_value::json_value(json_object data) {
-	construct<json_object>(data);
-	_type = value_type::_object;
+json_value::json_value(json_object data) : json_value() {
+	_storage->set<json_object>(data);
 }
 
 json_value::json_value(const json_value & val) {
-	copy_data(val);
+	_storage = std::make_unique<json_storage>(*val._storage);
 }
 
 json_value::json_value(json_value && val) {
-	move_data(std::move(val));
+	_storage = std::make_unique<json_storage>(std::move(*val._storage));
 }
 
-json_value::json_value(const char * name, const json_value & val) {
-	construct<json_object>();
-	get_ptr<json_object>()->insert({ name, val });
-	_type = value_type::_object;
+json_value::json_value(const char * name, const json_value & val) : json_value() {
+	_storage->type(value_type::_object);
+	_storage->get<json_object>()->insert({ name, val });
 }
 
-json_value::json_value(const char * name, const json_value && val) {
-	construct<json_object>();
-	get_ptr<json_object>()->insert({ name, val });
-	_type = value_type::_object;
+json_value::json_value(const char * name, json_value && val) : json_value() {
+	_storage->type(value_type::_object);
+	_storage->get<json_object>()->insert({ name, std::move(val) });
 }
 
 json_value & json_value::operator=(const json_value & val) {
-	clear_storage();
-	copy_data(val);
+	*_storage = *val._storage;
 	return *this;
 }
 
 json_value & json_value::operator=(json_value && val) {
-	clear_storage();
-	move_data(std::move(val));
+	*_storage = std::move(*val._storage);
 	return *this;
 }
 
 json_value::~json_value() {
-	clear_storage();
+	_storage->clear();
 }
 
 bool & json_value::as_bool() {
-	return *get_ptr<bool>();
+	return *_storage->get<bool>();
 }
 
 bool & json_value::as_bool() const {
@@ -341,7 +450,7 @@ bool & json_value::as_bool() const {
 }
 
 double & json_value::as_num() {
-	return *get_ptr<double>();
+	return *_storage->get<double>();
 }
 
 double & json_value::as_num() const {
@@ -349,7 +458,7 @@ double & json_value::as_num() const {
 }
 
 std::string & json_value::as_string() {
-	return  *get_ptr<std::string>();
+	return  *_storage->get<std::string>();
 }
 
 std::string & json_value::as_string() const {
@@ -357,7 +466,7 @@ std::string & json_value::as_string() const {
 }
 
 json_array * json_value::as_array() {
-	return get_ptr<json_array>();
+	return _storage->get<json_array>();
 }
 
 json_array * json_value::as_array() const {
@@ -365,7 +474,7 @@ json_array * json_value::as_array() const {
 }
 
 json_object * json_value::as_object() {
-	return get_ptr<json_object>();
+	return _storage->get<json_object>();
 }
 
 json_object * json_value::as_object() const {
@@ -373,51 +482,35 @@ json_object * json_value::as_object() const {
 }
 
 void json::json_value::assign(bool & val) {
-	clear_storage();
-	_type = value_type::_bool;
-	construct<bool>(val);
+	_storage->set<bool>(val);
 }
 
 void json::json_value::assign(char c) {
-	clear_storage();
-	_type = value_type::_bool;
-	construct<char>(c);
+	_storage->set<char>(c);
 }
 
 void json::json_value::assign(int num) {
-	clear_storage();
-	_type = value_type::_number;
-	construct<int>(num);
+	_storage->set<int>(num);
 }
 
 void json::json_value::assign(double num) {
-	clear_storage();
-	_type = value_type::_number;
-	construct<double>(num);
+	_storage->set<double>(num);
 }
 
 void json::json_value::assign(const std::string & string) {
-	clear_storage();
-	_type = value_type::_string;
-	construct<std::string>(string);
+	_storage->set<std::string>(string);
 }
 
 void json::json_value::assign(const char * string) {
-	clear_storage();
-	_type = value_type::_string;
-	construct<std::string>(string);
+	_storage->set<std::string>(string);
 }
 
 void json::json_value::assign(json_array array){
-	clear_storage();
-	_type = value_type::_array;
-	construct<json_array>(array);
+	_storage->set<json_array>(array);
 }
 
 void json::json_value::assign(json_object object) {
-	clear_storage();
-	_type = value_type::_object;
-	construct<json_object>(object);
+	_storage->set<json_object>(object);
 }
 
 json_value & json::json_value::operator[](size_t index) {
@@ -427,7 +520,7 @@ json_value & json::json_value::operator[](size_t index) {
 	if (!is_array()) {
 		throw; // to-do добавить бросок ошибок
 	}
-	json_array * arr = get_ptr<json_array>();
+	json_array * arr = _storage->get<json_array>();
 	if (index >= arr->size()) {
 		arr->resize(index + 1);
 	}
@@ -438,7 +531,7 @@ const json_value & json::json_value::operator[](size_t index) const {
 	if (!is_array()) {
 		throw; // to-do добавить бросок ошибок
 	}
-	const json_array * arr = get_ptr<json_array>();
+	const json_array * arr = _storage->get<json_array>();
 	if (index >= arr->size()) {
 		throw; // to-do добавить бросок ошибок
 	}
@@ -452,7 +545,7 @@ json_value & json::json_value::operator[](const char * key) {
 	if (!is_object()) {
 		throw; // to-do добавить бросок ошибок
 	}
-	json_object * obj = get_ptr<json_object>();
+	json_object * obj = _storage->get<json_object>();
 	return (*obj)[key];
 }
 
@@ -460,7 +553,7 @@ const json_value & json::json_value::operator[](const char * key) const {
 	if (!is_object()) {
 		throw; // to-do добавить бросок ошибок
 	}
-	const json_object * obj = get_ptr<json_object>();
+	const json_object * obj = _storage->get<json_object>();
 	auto res = obj->find(key);
 	if (res == obj->end()) {
 		throw; // to-do добавить бросок ошибок
@@ -480,7 +573,7 @@ json_value & json::json_value::at(size_t index){
 	if (!is_array()) {
 		throw; // to-do добавить бросок ошибок
 	}
-	json_array * arr = get_ptr<json_array>();
+	json_array * arr = _storage->get<json_array>();
 	if (index >= arr->size()) {
 		throw; // to-do добавить бросок ошибок
 	}
@@ -491,7 +584,7 @@ const json_value & json::json_value::at(size_t index) const {
 	if (!is_array()) {
 		throw; // to-do добавить бросок ошибок
 	}
-	const json_array * arr = get_ptr<json_array>();
+	const json_array * arr = _storage->get<json_array>();
 	if (index >= arr->size()) {
 		throw; // to-do добавить бросок ошибок
 	}
@@ -502,7 +595,7 @@ json_value & json::json_value::at(const char * key) {
 	if (!is_object()) {
 		throw; // to-do добавить бросок ошибок
 	}
-	json_object * obj = get_ptr<json_object>();
+	json_object * obj = _storage->get<json_object>();
 	auto res = obj->find(key);
 	if (res == obj->end()) {
 		throw; // to-do добавить бросок ошибок
@@ -514,7 +607,7 @@ const json_value & json::json_value::at(const char * key) const {
 	if (!is_object()) {
 		throw; // to-do добавить бросок ошибок
 	}
-	const json_object * obj = get_ptr<json_object>();
+	const json_object * obj = _storage->get<json_object>();
 	const auto res = obj->find(key);
 	if (res == obj->end()) {
 		throw; // to-do добавить бросок ошибок
@@ -523,11 +616,11 @@ const json_value & json::json_value::at(const char * key) const {
 }
 
 json_value & json::json_value::at(const std::string & key) {
-	at(key);
+	return at(key);
 }
 
 const json_value & json::json_value::at(const std::string & key) const {
-	at(key);
+	return at(key);
 }
 
 jv_pointer json_value::find(const std::string & name) {
@@ -536,7 +629,7 @@ jv_pointer json_value::find(const std::string & name) {
 
 jv_pointer json_value::find(const char * name) {
 	jv_pointer result = nullptr;
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_array:
 		result = find_in_array(name);
 		break;
@@ -553,7 +646,7 @@ json_pointer_array json_value::select(const std::string & key){
 
 json_pointer_array json_value::select(const char * key){
 	json_pointer_array result;
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_array:
 		result = select_in_array(key);
 		break;
@@ -565,64 +658,64 @@ json_pointer_array json_value::select(const char * key){
 }
 
 jv_pointer json_value::add(const json_value & val) {
-	if (_type != value_type::_array) {
+	if (_storage->type() != value_type::_array) {
 		return nullptr;
 	}
 	jv_pointer result = nullptr;
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_array:
-		get_ptr<json_array>()->push_back(val);
-		result = &get_ptr<json_array>()->back();
+		_storage->get<json_array>()->push_back(val);
+		result = &_storage->get<json_array>()->back();
 		break;
 	}
 	return result;
 }
 
 jv_pointer json_value::add(json_value && val) {
-	if (_type != value_type::_array) {
+	if (_storage->type() != value_type::_array) {
 		return nullptr;
 	}
 	jv_pointer result = nullptr;
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_array:
-		get_ptr<json_array>()->push_back(std::move(val));
-		result = &get_ptr<json_array>()->back();
+		_storage->get<json_array>()->push_back(std::move(val));
+		result = &_storage->get<json_array>()->back();
 		break;
 	}
 	return result;
 }
 
 jv_pointer json_value::add(const char * name, const json_value & val) {
-	if (_type != value_type::_object) {
+	if (_storage->type() != value_type::_object) {
 		return nullptr;
 	}
 	jv_pointer result = nullptr;
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_object:
-		get_ptr<json_object>()->insert_or_assign(name, val);
-		result = &get_ptr<json_object>()->operator[](name);
+		_storage->get<json_object>()->insert_or_assign(name, val);
+		result = &_storage->get<json_object>()->operator[](name);
 		break;
 	case value_type::_array:
-		get_ptr<json_array>()->push_back(json_value(name, val));
-		result = &get_ptr<json_array>()->back();
+		_storage->get<json_array>()->push_back(json_value(name, val));
+		result = &_storage->get<json_array>()->back();
 		break;
 	}
 	return result;
 }
 
 jv_pointer json_value::add(const char * name, json_value && val) {
-	if (_type != value_type::_object) {
+	if (_storage->type() != value_type::_object) {
 		return nullptr;
 	}
 	jv_pointer result = nullptr;
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_object:
-		get_ptr<json_object>()->insert_or_assign(name, std::move(val));
-		result = &get_ptr<json_object>()->operator[](name);
+		_storage->get<json_object>()->insert_or_assign(name, std::move(val));
+		result = &_storage->get<json_object>()->operator[](name);
 		break;
 	case value_type::_array:
-		get_ptr<json_array>()->push_back(json_value(name, std::move(val)));
-		result = &get_ptr<json_array>()->back();
+		_storage->get<json_array>()->push_back(json_value(name, std::move(val)));
+		result = &_storage->get<json_array>()->back();
 		break;
 	}
 	return result;
@@ -637,12 +730,12 @@ jv_pointer json_value::add(const std::string & name, json_value && val) {
 }
 
 void json_value::remove(const char * key){
-	if (_type != value_type::_object) {
+	if (_storage->type() != value_type::_object) {
 		return;
 	}
-	auto target = get_ptr<json_object>()->find(key);
-	if (target != get_ptr<json_object>()->end()) {
-		get_ptr<json_object>()->erase(target);
+	auto target = _storage->get<json_object>()->find(key);
+	if (target != _storage->get<json_object>()->end()) {
+		_storage->get<json_object>()->erase(target);
 	}
 }
 
@@ -651,28 +744,28 @@ void json_value::remove(const std::string & key){
 }
 
 void json_value::remove(size_t num){
-	if (_type != value_type::_array || num < 0) {
+	if (_storage->type() != value_type::_array || num < 0) {
 		return;
 	}
-	if (num > get_ptr<json_array>()->size()) {
+	if (num > _storage->get<json_array>()->size()) {
 		return;
 	}
-	get_ptr<json_array>()->erase(get_ptr<json_array>()->begin() + num);
+	_storage->get<json_array>()->erase(_storage->get<json_array>()->begin() + num);
 }
 
 void json_value::clear(){
-	clear_storage();
+	_storage->clear();
 }
 
 json_value json_value::extract(const char * key){
-	if (_type != value_type::_object) {
+	if (_storage->type() != value_type::_object) {
 		throw; // ошибка
 		//return;
 	}
-	auto target = get_ptr<json_object>()->find(key);
+	auto target = _storage->get<json_object>()->find(key);
 	json_value res = std::move(target->second);
-	if (target != get_ptr<json_object>()->end()) {
-		get_ptr<json_object>()->erase(target);
+	if (target != _storage->get<json_object>()->end()) {
+		_storage->get<json_object>()->erase(target);
 	}
 	return res;
 }
@@ -682,70 +775,52 @@ json_value json_value::extract(const std::string & key){
 }
 
 value_type json_value::type() const {
-	return _type;
+	return _storage->type();
 }
 
 void json_value::type(value_type _t) {
-	clear_storage();
-	_type = _t;
-	switch (_type) {
-	case value_type::_bool:
-		construct<bool>(false);
-		break;
-	case value_type::_number:
-		construct<double>(0);
-		break;
-	case value_type::_string:
-		construct<std::string>("");
-		break;
-	case value_type::_array:
-		construct<json_array>();
-		break;
-	case value_type::_object:
-		construct<json_object>();
-		break;
-	}
+	_storage->type(_t);
 }
 
 bool json_value::is_null() const {
-	return _type == value_type::_null;
+	return _storage->type() == value_type::_null;
 }
 
 bool json_value::is_bool() const {
-	return _type == value_type::_bool;
+	return _storage->type() == value_type::_bool;
 }
 
 bool json_value::is_number() const {
-	return _type == value_type::_number;
+	return _storage->type() == value_type::_number;
 }
 
 bool json_value::is_string() const {
-	return _type == value_type::_string;
+	return _storage->type() == value_type::_string;
 }
 
 bool json_value::is_array() const {
-	return _type == value_type::_array;
+	return _storage->type() == value_type::_array;
 }
 
 bool json_value::is_object() const {
-	return _type == value_type::_object;
+	return _storage->type() == value_type::_object;
 }
 
 size_t json_value::item_count(){
 	size_t count = 0;
-	switch (_type){
+	switch (_storage->type()){
 	case value_type::_null:
 	case value_type::_number:
 	case value_type::_bool:
 	case value_type::_string:
 		return 1;
 	case value_type::_array:
-		for (size_t i = 0; i < get_ptr<json_array>()->size(); ++i) {
-			count += 1 + get_ptr<json_array>()->operator[](i).item_count();
+		for (size_t i = 0; i < _storage->get<json_array>()->size(); ++i) {
+			count += 1 + _storage->get<json_array>()->operator[](i).item_count();
 		}
 		break;
 	case value_type::_object:
-		for (auto it = get_ptr<json_object>()->begin(); it != get_ptr<json_object>()->end(); ++it) {
+		for (auto it = _storage->get<json_object>()->begin(); it != _storage->get<json_object>()->end(); ++it) {
 			count += 1 + it->second.item_count();
 		}
 		break;
@@ -754,39 +829,39 @@ size_t json_value::item_count(){
 }
 
 size_t json::json_value::size() const noexcept {
-	switch (_type) {
+	switch (_storage->type()) {
 	case json::value_type::_null:
 		return 0;
 	case json::value_type::_string:
-		return get_ptr<std::string>()->size();
+		return _storage->get<std::string>()->size();
 	case json::value_type::_array:
-		return get_ptr<json_array>()->size();
+		return _storage->get<json_array>()->size();
 	case json::value_type::_object:
-		return get_ptr<json_object>()->size();
+		return _storage->get<json_object>()->size();
 	}
 	return 1;
 }
 
 bool json::json_value::empty() const noexcept {
-	switch (_type) {
+	switch (_storage->type()) {
 	case json::value_type::_null:
 		return true;
 	case json::value_type::_string:
-		return get_ptr<std::string>()->empty();
+		return _storage->get<std::string>()->empty();
 	case json::value_type::_array:
-		return get_ptr<json_array>()->empty();
+		return _storage->get<json_array>()->empty();
 	case json::value_type::_object:
-		return get_ptr<json_object>()->empty();
+		return _storage->get<json_object>()->empty();
 	}
 	return false;
 }
 
 json_value_iterator json_value::begin(){
-	switch (_type){
+	switch (_storage->type()){
 	case value_type::_array:
-		return json_value_iterator(get_ptr<json_array>()->begin());
+		return json_value_iterator(_storage->get<json_array>()->begin());
 	case value_type::_object:
-		return json_value_iterator(get_ptr<json_object>()->begin());
+		return json_value_iterator(_storage->get<json_object>()->begin());
 	default:
 		break; // вставить обработчик ошибки
 	}
@@ -797,22 +872,22 @@ json_value_iterator json_value::begin() const {
 }
 
 json_value_iterator json_value::cbegin() const{
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_array:
-		return json_value_iterator(get_ptr<json_array>()->cbegin());
+		return json_value_iterator(_storage->get<json_array>()->cbegin());
 	case value_type::_object:
-		return json_value_iterator(get_ptr<json_object>()->cbegin());
+		return json_value_iterator(_storage->get<json_object>()->cbegin());
 	default:
 		break; // вставить обработчик ошибки
 	}
 }
 
 json_value_iterator json_value::end(){
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_array:
-		return json_value_iterator(get_ptr<json_array>()->end());
+		return json_value_iterator(_storage->get<json_array>()->end());
 	case value_type::_object:
-		return json_value_iterator(get_ptr<json_object>()->end());
+		return json_value_iterator(_storage->get<json_object>()->end());
 	default:
 		break; // вставить обработчик ошибки
 	}
@@ -823,64 +898,18 @@ json_value_iterator json_value::end() const{
 }
 
 json_value_iterator json_value::cend() const {
-	switch (_type) {
+	switch (_storage->type()) {
 	case value_type::_array:
-		return json_value_iterator(get_ptr<json_array>()->cend());
+		return json_value_iterator(_storage->get<json_array>()->cend());
 	case value_type::_object:
-		return json_value_iterator(get_ptr<json_object>()->cend());
+		return json_value_iterator(_storage->get<json_object>()->cend());
 	default:
 		break; // вставить обработчик ошибки
 	}
 }
 
-void json_value::copy_data(const json_value & val) {
-	_type = val._type;
-	switch (_type) {
-	case value_type::_bool:
-		construct<bool>(*val.get_ptr<bool>());
-		break;
-	case value_type::_number:
-		construct<double>(*val.get_ptr<double>());
-		break;
-	case value_type::_string:
-		construct<std::string>(*val.get_ptr<std::string>());
-		break;
-	case value_type::_array:
-		construct<json_array>(*val.get_ptr<json_array>());
-		break;
-	case value_type::_object:
-		construct<json_object>(*val.get_ptr<json_object>());
-		break;
-	}
-}
-
-void json_value::move_data(json_value && val) {
-	_type = val._type;
-	switch (_type) {
-	case value_type::_bool:
-		construct<bool>(std::move(*val.get_ptr<bool>()));
-		break;
-	case value_type::_number:
-		construct<double>(std::move(*val.get_ptr<double>()));
-		break;
-	case value_type::_string:
-		construct<std::string>(std::move(*val.get_ptr<std::string>()));
-		val.get_ptr<std::string>()->~basic_string();
-		break;
-	case value_type::_array:
-		construct<json_array>(std::move(*val.get_ptr<json_array>()));
-		val.get_ptr<json_array>()->~vector();
-		break;
-	case value_type::_object:
-		construct<json_object>(std::move(*val.get_ptr<json_object>()));
-		val.get_ptr<json_object>()->~map();
-		break;
-	}
-	val._type = value_type::_null;
-}
-
 jv_pointer json_value::find_impl(json_value & val, const char * name){
-	switch (val._type) {
+	switch (val._storage->type()) {
 	case value_type::_array:
 		return val.find_in_array(name);
 	case value_type::_object:
@@ -891,8 +920,8 @@ jv_pointer json_value::find_impl(json_value & val, const char * name){
 
 jv_pointer json_value::find_in_array(const char * name) {
 	jv_pointer _result = nullptr;
-	for (size_t _i = 0; _i < get_ptr<json_array>()->size(); ++_i) {
-		_result = find_impl(get_ptr<json_array>()->operator[](_i), name);
+	for (size_t _i = 0; _i < _storage->get<json_array>()->size(); ++_i) {
+		_result = find_impl(_storage->get<json_array>()->operator[](_i), name);
 		if (_result) {
 			break;
 		}
@@ -902,11 +931,11 @@ jv_pointer json_value::find_in_array(const char * name) {
 
 jv_pointer json_value::find_in_object(const char * name) {
 	jv_pointer _result = nullptr;
-	if (get_ptr<json_object>()->count(std::string(name)) != 0) {
-		_result = &get_ptr<json_object>()->operator[](name);
+	if (_storage->get<json_object>()->count(std::string(name)) != 0) {
+		_result = &_storage->get<json_object>()->operator[](name);
 	}
 	if (!_result) {
-		for (auto it = get_ptr<json_object>()->begin(); it != get_ptr<json_object>()->end(); ++it) {
+		for (auto it = _storage->get<json_object>()->begin(); it != _storage->get<json_object>()->end(); ++it) {
 			_result = find_impl(it->second, name);
 			if (_result) {
 				break;
@@ -917,7 +946,7 @@ jv_pointer json_value::find_in_object(const char * name) {
 }
 
 void json_value::select_impl(json_pointer_array & res, json_pointer_array & sub, json_value & val, const char * name){
-	switch (val._type) {
+	switch (val._storage->type()) {
 	case value_type::_array:
 		sub = val.select_in_array(name);
 		break;
@@ -933,8 +962,8 @@ void json_value::select_impl(json_pointer_array & res, json_pointer_array & sub,
 json_pointer_array json_value::select_in_array(const char * name){
 	json_pointer_array _result;
 	json_pointer_array _sub_result;
-	for (size_t _i = 0; _i < get_ptr<json_array>()->size(); ++_i) {
-		select_impl(_result, _sub_result, get_ptr<json_array>()->operator[](_i), name);
+	for (size_t _i = 0; _i < _storage->get<json_array>()->size(); ++_i) {
+		select_impl(_result, _sub_result, _storage->get<json_array>()->operator[](_i), name);
 	}
 	return _result;
 }
@@ -942,10 +971,10 @@ json_pointer_array json_value::select_in_array(const char * name){
 json_pointer_array json_value::select_in_object(const char * name){
 	json_pointer_array _result;
 	json_pointer_array _sub_result;
-	if (get_ptr<json_object>()->count(std::string(name)) != 0) {
-		_result.push_back(&get_ptr<json_object>()->operator[](name));
+	if (_storage->get<json_object>()->count(std::string(name)) != 0) {
+		_result.push_back(&_storage->get<json_object>()->operator[](name));
 	}
-	for (auto it = get_ptr<json_object>()->begin(); it != get_ptr<json_object>()->end(); ++it) {
+	for (auto it = _storage->get<json_object>()->begin(); it != _storage->get<json_object>()->end(); ++it) {
 		select_impl(_result, _sub_result, it->second, name);
 	}
 	return _result;

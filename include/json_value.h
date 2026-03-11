@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <type_traits>
+#include <memory>
 
 namespace json {
 
@@ -27,6 +28,112 @@ namespace json {
 		_array,
 		_object
 	};
+
+	namespace impl {
+
+		// класс для управления паматью json_value
+		class json_storage {
+		public:
+			// конструктор класса
+			json_storage();
+			json_storage(const json_storage & other);
+			json_storage(json_storage && other);
+
+			// оператор присвоения 
+			json_storage & operator=(const json_storage & other);
+			json_storage & operator=(json_storage && other);
+
+			// операторы сравнения 
+			bool operator==(const json_storage & other);
+			bool operator!=(const json_storage & other);
+
+			// деструктор
+			~json_storage();
+
+			// очистка памяти
+			void clear() noexcept;
+
+			// возврат значения с необходимым типом
+			template<typename data_type> data_type * get() noexcept {
+				return reinterpret_cast<data_type*>(_storage);
+			}
+
+			// возврат константного значения с необходимым типом
+			template<typename data_type> const data_type * get() const noexcept {
+				return reinterpret_cast<const data_type*>(_storage);
+			}
+
+			// установка значения
+			template<typename data_type, typename... args>
+			void set(args&&... _args) {
+				if (_type != value_type::_null) {
+					clear(); // очистка памяти перед инициализацией нового типа
+				}
+				new (_storage) data_type(std::forward<args>(_args)...);
+				if (std::is_same_v<data_type, bool>) {
+					_type = value_type::_bool;
+				}
+				else if (std::is_same_v<data_type, double>) {
+					_type = value_type::_number;
+				}
+				else if (std::is_same_v<data_type, std::string>) {
+					_type = value_type::_string;
+				}
+				else if (std::is_same_v<data_type, json_array>) {
+					_type = value_type::_array;
+				}
+				else if (std::is_same_v<data_type, json_object>) {
+					_type = value_type::_object;
+				}
+				else {
+					_type = value_type::_null;
+				}
+			}
+
+			// установка и возврат типа
+			value_type type() const;
+			void type(value_type new_type);
+
+			// возврат выравнивания 
+			size_t aligned() const noexcept;
+
+			// возврат размера буфера
+			size_t size() const noexcept;
+
+		private:
+
+			// копирование 
+			void copy_data(const json_storage & other);
+
+			// перемещение 
+			void move_data(json_storage && other);
+
+			// вычисление размера буфера
+			static constexpr size_t buffer_size =
+				sizeof(bool) > sizeof(double) ? sizeof(bool) :
+				sizeof(double) > sizeof(std::string) ? sizeof(double) :
+				sizeof(std::string) > sizeof(json::json_array) ? sizeof(std::string) :
+				sizeof(json::json_array) > sizeof(json::json_object) ?
+				sizeof(json::json_array) : sizeof(json::json_object);
+
+			// вычисление размера выравнивания 
+			static constexpr size_t align_size =
+				alignof(bool) > alignof(double) ? alignof(bool) :
+				alignof(double) > alignof(std::string) ? alignof(double) :
+				alignof(std::string) > alignof(json::json_array) ? alignof(std::string) :
+				alignof(json::json_array) > alignof(json::json_object) ?
+				alignof(json::json_array) : alignof(json::json_object);
+
+			// шаблонная вставка для массивов и объектов
+			template<typename data_type, typename range_type> void insert_data(data_type & data, range_type && range) {
+				data.insert(data.begin(), std::begin(range), set::end(range));
+			}
+
+			alignas(align_size) char _storage[buffer_size]; // буфер для хранения данных
+
+			value_type _type; // тип
+		};
+	}
 
 	// класс итератора
 	class json_value_iterator {
@@ -131,7 +238,7 @@ namespace json {
 	public:
 
 		// конструтор класса
-		json_value() noexcept = default;
+		json_value();
 		json_value(value_type type);
 		json_value(bool data);
 		json_value(double data);
@@ -142,13 +249,13 @@ namespace json {
 		json_value(const json_value & val);
 		json_value(json_value && val);
 		json_value(const char * name, const json_value & val);
-		json_value(const char * name, const json_value && val);
+		json_value(const char * name, json_value && val);
 
 		json_value & operator=(const json_value & jval);
 		json_value & operator=(json_value && jval);
 
 		// деструктор класса
-		~json_value();
+		~json_value(); // to-do нужен ли 
 
 		// для получения булевого значения 
 		bool & as_bool();
@@ -261,12 +368,6 @@ namespace json {
 
 	private:
 
-		// перемещение данных 
-		void copy_data(const json_value & val);
-
-		// копирование данных
-		void move_data(json_value && val);
-
 		// реализация всех значений по указанному ключу
 		jv_pointer find_impl(json_value & val, const char * name);
 
@@ -285,38 +386,7 @@ namespace json {
 		// поиск всех значений по указанному ключу в объекте
 		json_pointer_array select_in_object(const char * name);
 
-		value_type _type = value_type::_null; // тип
-
-		static constexpr size_t buffer_size =
-			sizeof(bool) > sizeof(double) ? sizeof(bool) :
-			sizeof(double) > sizeof(std::string) ? sizeof(double) :
-			sizeof(std::string) > sizeof(json::json_array) ? sizeof(std::string) :
-			sizeof(json::json_array) > sizeof(json::json_object) ?
-			sizeof(json::json_array) : sizeof(json::json_object);
-
-		static constexpr size_t align_size =
-			alignof(bool) > alignof(double) ? alignof(bool) :
-			alignof(double) > alignof(std::string) ? alignof(double) :
-			alignof(std::string) > alignof(json::json_array) ? alignof(std::string) :
-			alignof(json::json_array) > alignof(json::json_object) ?
-			alignof(json::json_array) : alignof(json::json_object);
-
-		alignas(align_size) char storage[buffer_size];
-
-		template<typename _type, typename... args> 
-		void construct(args&&... _args) {
-			new (storage) _type(std::forward<args>(_args)...);
-		}
-
-		void clear_storage() noexcept;
-
-		template<typename _type> _type * get_ptr() noexcept {
-			return reinterpret_cast<_type*>(storage); 
-		}
-		
-		template<typename _type> const _type * get_ptr() const noexcept {
-			return reinterpret_cast<const _type*>(storage);
-		}
+		std::unique_ptr<json::impl::json_storage> _storage; // хранилище данных
 	};
 
 }
