@@ -54,45 +54,6 @@ void json::io::i_output_processor::set_space_size(size_t count) {
 
 void i_output_processor::escape_string(const char * data){
 	_encoder->encode_code('\"');
-	/*while (*data != '\0') {
-		switch (*data){
-		case '\"':
-			_encoder->encode_string("\\\"");
-			break;
-		case '\\':
-			_encoder->encode_string("\\\\");
-			break;
-		case '/':
-			_encoder->encode_string("\\/");
-			break;
-		case '\b':
-			_encoder->encode_string("\\b");
-			break;
-		case '\f':
-			_encoder->encode_string("\\f");
-			break;
-		case '\n':
-			_encoder->encode_string("\\n");
-			break;
-		case '\r':
-			_encoder->encode_string("\\r");
-			break;
-		case '\t':
-			_encoder->encode_string("\\t");
-			break;
-		default:
-			if (*data < 0x20) {
-				char buf[7];
-				snprintf(buf, sizeof(buf), "\\u%04x", *data);
-				_encoder->encode_string(buf);
-			}
-			else {
-				_encoder->encode_code(*data);
-			}
-			break;
-		}
-		data++;
-	}*/
 	_encoder->encode_string(data);
 	_encoder->encode_code('\"');
 }

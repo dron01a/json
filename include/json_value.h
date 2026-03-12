@@ -23,13 +23,17 @@ namespace json {
 	enum class value_type {
 		_null,
 		_bool,
-		_number,
+		_int,
+		_uint,
+		_double,
 		_string,
 		_array,
 		_object
 	};
 
 	namespace impl {
+
+		// to-do : добавить возможность хранить числа разных типов 
 
 		// класс для управления паматью json_value
 		class json_storage {
@@ -44,8 +48,8 @@ namespace json {
 			json_storage & operator=(json_storage && other);
 
 			// операторы сравнения 
-			bool operator==(const json_storage & other);
-			bool operator!=(const json_storage & other);
+			bool operator==(const json_storage & other) const ;
+			bool operator!=(const json_storage & other) const ;
 
 			// деструктор
 			~json_storage();
@@ -73,8 +77,14 @@ namespace json {
 				if (std::is_same_v<data_type, bool>) {
 					_type = value_type::_bool;
 				}
+				else if (std::is_same_v<data_type, int>) {
+					_type = value_type::_int;
+				}
+				else if (std::is_same_v<data_type, unsigned int>) {
+					_type = value_type::_uint;
+				}
 				else if (std::is_same_v<data_type, double>) {
-					_type = value_type::_number;
+					_type = value_type::_double;
 				}
 				else if (std::is_same_v<data_type, std::string>) {
 					_type = value_type::_string;
@@ -124,15 +134,19 @@ namespace json {
 				alignof(json::json_array) > alignof(json::json_object) ?
 				alignof(json::json_array) : alignof(json::json_object);
 
-			// шаблонная вставка для массивов и объектов
-			template<typename data_type, typename range_type> void insert_data(data_type & data, range_type && range) {
-				data.insert(data.begin(), std::begin(range), set::end(range));
-			}
-
 			alignas(align_size) char _storage[buffer_size]; // буфер для хранения данных
 
 			value_type _type; // тип
 		};
+
+		// сравнение числовых типов
+		static bool compare_num_types(const json_storage & a, const json_storage & b);
+		
+		// проверка числовых типов
+		static bool check_num_types(const value_type & a, const value_type & b);
+
+		// преобразует в число
+		static double cast_to_double(const json_storage & data);
 	}
 
 	// класс итератора
@@ -241,6 +255,8 @@ namespace json {
 		json_value();
 		json_value(value_type type);
 		json_value(bool data);
+		json_value(int data);
+		json_value(unsigned int data);
 		json_value(double data);
 		json_value(const std::string & string);
 		json_value(const char * string);
@@ -251,19 +267,28 @@ namespace json {
 		json_value(const char * name, const json_value & val);
 		json_value(const char * name, json_value && val);
 
+		// операторы присвоения
 		json_value & operator=(const json_value & jval);
 		json_value & operator=(json_value && jval);
 
 		// деструктор класса
 		~json_value(); // to-do нужен ли 
 
+		// операторы сравнения 
+		bool operator==(const json_value & jval) const;
+		bool operator!=(const json_value & jval) const;
+
 		// для получения булевого значения 
 		bool & as_bool();
 		bool & as_bool() const;
 
 		// для получения числового значения
-		double & as_num();
-		double & as_num() const;
+		int & as_int();
+		int & as_int() const;
+		unsigned int & as_uint();
+		unsigned int & as_uint() const;
+		double & as_double();
+		double & as_double() const;
 
 		// для получения строки
 		std::string & as_string();
@@ -280,6 +305,7 @@ namespace json {
 		// функции присвоения
 		void assign(bool & val);
 		void assign(char с);
+		void assign(unsigned int num);
 		void assign(int num);
 		void assign(double num);
 		void assign(const std::string & string);
@@ -342,7 +368,7 @@ namespace json {
 		// проверки на соответствие типу
 		bool is_null() const;
 		bool is_bool() const;
-		bool is_number() const;
+		bool is_double() const;
 		bool is_string() const;
 		bool is_array() const;
 		bool is_object() const;

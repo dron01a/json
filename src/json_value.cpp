@@ -27,27 +27,30 @@ json_storage & json_storage::operator=(json_storage && other) {
 	return *this;
 }
 
-bool json_storage::operator==(const json_storage & other) {
-	if (other._type == _type) {
-		switch (_type) {
-		case json::value_type::_null:
-			return true;
-		case json::value_type::_bool:
-			return other.get<bool>() == get<bool>();
-		case json::value_type::_number:
-			return other.get<double>() == get<double>();
-		case json::value_type::_string:
-			return other.get<std::string>() == get<std::string>();
-		case json::value_type::_array:
-			return other.get<json_array>() == get<json_array>();
-		case json::value_type::_object:
-			return other.get<json_object>() == get<json_object>();
-		}
+bool json_storage::operator==(const json_storage & other) const {
+	using vt = value_type;
+	if (other._type != _type && !check_num_types(other.type(), _type)) {
+		return false;
 	}
-	return false;
+	switch (_type) {
+	case json::value_type::_null:
+		return true;
+	case json::value_type::_bool:
+		return *other.get<bool>() == *this->get<bool>();
+	case json::value_type::_int:
+	case json::value_type::_uint:
+	case json::value_type::_double:
+		return compare_num_types(*this, other);
+	case json::value_type::_string:
+		return *other.get<std::string>() == *this->get<std::string>();
+	case json::value_type::_array:
+		return *other.get<json_array>() == *this->get<json_array>();
+	case json::value_type::_object:
+		return *other.get<json_object>() == *this->get<json_object>();
+	}
 }
 
-bool json_storage::operator!=(const json_storage & other) {
+bool json_storage::operator!=(const json_storage & other) const {
 	return !(*this == other);
 }
 
@@ -81,7 +84,13 @@ void json_storage::type(value_type new_type){
 	case value_type::_bool:
 		set<bool>(false);
 		break;
-	case value_type::_number:
+	case value_type::_int:
+		set<int>(0);
+		break;
+	case value_type::_uint:
+		set<unsigned int>(0);
+		break;
+	case value_type::_double:
 		set<double>(0);
 		break;
 	case value_type::_string:
@@ -109,7 +118,13 @@ void json_storage::copy_data(const json_storage & other) {
 	case value_type::_bool:
 		set<bool>(*other.get<bool>());
 		break;
-	case value_type::_number:
+	case value_type::_int:
+		set<int>(*other.get<int>());
+		break;
+	case value_type::_uint:
+		set<unsigned int>(*other.get<unsigned int>());
+		break;
+	case value_type::_double:
 		set<double>(*other.get<double>());
 		break;
 	case value_type::_string:
@@ -129,7 +144,13 @@ void json_storage::move_data(json_storage && other) {
 	case value_type::_bool:
 		set<bool>(std::move(*other.get<bool>()));
 		break;
-	case value_type::_number:
+	case value_type::_int:
+		set<int>(std::move(*other.get<int>()));
+		break;
+	case value_type::_uint:
+		set<unsigned int>(std::move(*other.get<unsigned int>()));
+		break;
+	case value_type::_double:
 		set<double>(std::move(*other.get<double>()));
 		break;
 	case value_type::_string:
@@ -148,6 +169,28 @@ void json_storage::move_data(json_storage && other) {
 	other._type = value_type::_null;
 }
 
+bool json::impl::check_num_types(const value_type & a, const value_type & b) {
+	return (a == value_type::_int || a == value_type::_double || a == value_type::_uint) 
+		&& (b == value_type::_int || b == value_type::_double || b == value_type::_uint);
+}
+
+bool json::impl::compare_num_types(const json_storage & a, const json_storage & b){
+	double var_a = cast_to_double(a);
+	double var_b = cast_to_double(b);
+	return var_a == var_b;
+}
+
+double json::impl::cast_to_double(const json_storage & data) {
+	switch (data.type()) {
+	case json::value_type::_int:
+		return *data.get<int>();
+	case json::value_type::_uint:
+		return *data.get<unsigned int>();
+	case json::value_type::_double:
+		return *data.get<double>();
+	}
+	throw; // to-do бросок ошибки добавить
+}
 
 json_value_iterator::json_value_iterator() : _type(_iterator_type::_empty) {}
 
@@ -389,6 +432,14 @@ json_value::json_value(bool data) : json_value() {
 	_storage->set<bool>(data);
 }
 
+json::json_value::json_value(int data) : json_value() {
+	_storage->set<int>(data);
+}
+
+json::json_value::json_value(unsigned int data) : json_value() {
+	_storage->set<unsigned int>(data);
+}
+
 json_value::json_value(double data) : json_value() {
 	_storage->set<double>(data);
 }
@@ -441,6 +492,14 @@ json_value::~json_value() {
 	_storage->clear();
 }
 
+bool json::json_value::operator==(const json_value & jval) const {
+	return *_storage == *jval._storage;
+}
+
+bool json::json_value::operator!=(const json_value & jval) const {
+	return *_storage != *jval._storage;
+}
+
 bool & json_value::as_bool() {
 	return *_storage->get<bool>();
 }
@@ -449,12 +508,28 @@ bool & json_value::as_bool() const {
 	return const_cast<json_value*>(this)->as_bool();
 }
 
-double & json_value::as_num() {
+int & json::json_value::as_int() {
+	return *_storage->get<int>();
+}
+
+int & json_value::as_int() const {
+	return const_cast<json_value*>(this)->as_int();
+}
+
+unsigned int & json::json_value::as_uint() {
+	return *_storage->get<unsigned int>();
+}
+
+unsigned int & json_value::as_uint() const {
+	return const_cast<json_value*>(this)->as_uint();
+}
+
+double & json_value::as_double() {
 	return *_storage->get<double>();
 }
 
-double & json_value::as_num() const {
-	return const_cast<json_value*>(this)->as_num();
+double & json_value::as_double() const {
+	return const_cast<json_value*>(this)->as_double();
 }
 
 std::string & json_value::as_string() {
@@ -486,11 +561,15 @@ void json::json_value::assign(bool & val) {
 }
 
 void json::json_value::assign(char c) {
-	_storage->set<char>(c);
+	_storage->set<std::string>(std::string(1, c));
 }
 
 void json::json_value::assign(int num) {
 	_storage->set<int>(num);
+}
+
+void json::json_value::assign(unsigned int num) {
+	_storage->set<unsigned int>(num);
 }
 
 void json::json_value::assign(double num) {
@@ -790,8 +869,8 @@ bool json_value::is_bool() const {
 	return _storage->type() == value_type::_bool;
 }
 
-bool json_value::is_number() const {
-	return _storage->type() == value_type::_number;
+bool json_value::is_double() const {
+	return _storage->type() == value_type::_double;
 }
 
 bool json_value::is_string() const {
@@ -810,7 +889,9 @@ size_t json_value::item_count(){
 	size_t count = 0;
 	switch (_storage->type()){
 	case value_type::_null:
-	case value_type::_number:
+	case value_type::_int:
+	case value_type::_uint:
+	case value_type::_double:
 	case value_type::_bool:
 	case value_type::_string:
 		return 1;
