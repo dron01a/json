@@ -28,6 +28,9 @@ void test_array();
 // тест работы с объектами
 void test_object();
 
+// тест работы с числами 
+void test_number();
+
 int main() {
 	std::cout << "json::impl::json_storage test begin" << std::endl;
 	test_assign();
@@ -37,6 +40,7 @@ int main() {
 	clear_test();
 	test_array();
 	test_object();
+	test_number();
 	std::cout << "json::impl::json_storage test passed" << std::endl;
 	return 0;
 }
@@ -47,7 +51,7 @@ void test_assign() {
 
 	json_storage _storage;
 	_storage.set<int>(153);
-	my_assert(_storage.type() == value_type::_number, "type detect error | type is not number");
+	my_assert(_storage.type() == value_type::_int, "type detect error | type is not number");
 	my_assert(*_storage.get<int>() == 153, "wrong value");
 	*_storage.get<int>() = 23;
 	assert(*_storage.get<int>() == 23, "wrong value");
@@ -171,4 +175,16 @@ void test_object() {
 	my_assert(_storage.get<json_object>()->operator[]("c") == json_value("new string data"), "object assign error | wrong value");
 	std::cout << "\t\tobject modify test passed" << std::endl;
 	std::cout << "\tarray test passed" << std::endl;
+}
+
+void test_number() {
+	std::cout << "\tnumber test begin" << std::endl;
+	json_storage _storage1, _storage2, _storage3;
+	_storage1.set<int>(2);
+	_storage2.set<double>(2);
+	_storage3.set<unsigned int>(2);
+	my_assert(_storage1 == _storage2, "compare number error");
+	my_assert(_storage2 == _storage3, "compare number error");
+	my_assert(_storage1 == _storage3, "compare number error");
+	std::cout << "\tnumber test end" << std::endl;
 }
