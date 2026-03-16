@@ -9,6 +9,8 @@
 #include <type_traits>
 #include <memory>
 
+#include "error.h"
+
 namespace json {
 
 	class json_value;
@@ -31,9 +33,36 @@ namespace json {
 		_object
 	};
 
-	namespace impl {
+	class value_error : base_error {
+	public:
+		enum class error_code {
 
-		// to-do : добавить возможность хранить числа разных типов 
+			// ошибки для json_storage
+			_type_is_not_numberic = 0,
+			
+			// ошибки для класса json_value
+			_type_is_not_array,
+			_type_is_not_object,
+			_type_is_not_object_or_array,
+			_index_out_of_array_size,
+			_element_not_found, 
+			
+			// ошибки для итераторов
+			_is_not_object_iterator,
+			_is_not_const_object_iterator,
+			_is_not_array_iterator,
+			_is_not_const_array_iterator,
+			_is_empty_iterator,
+			_is_not_mutable_iterator
+
+		};
+
+		value_error(error_code code);
+	private:
+		std::string form_message(error_code code);
+	};
+
+	namespace impl {
 
 		// класс для управления паматью json_value
 		class json_storage {
@@ -270,6 +299,15 @@ namespace json {
 		// операторы присвоения
 		json_value & operator=(const json_value & jval);
 		json_value & operator=(json_value && jval);
+		json_value & operator=(bool & val);
+		json_value & operator=(char с);
+		json_value & operator=(unsigned int num);
+		json_value & operator=(int num);
+		json_value & operator=(double num);
+		json_value & operator=(const std::string & string);
+		json_value & operator=(const char * string);
+		json_value & operator=(json_array array);
+		json_value & operator=(json_object object);
 
 		// деструктор класса
 		~json_value(); // to-do нужен ли 
@@ -303,6 +341,8 @@ namespace json {
 		json_object * as_object() const;
 
 		// функции присвоения
+		void assign(const json_value & jval);
+		void assign(json_value && jval);
 		void assign(bool & val);
 		void assign(char с);
 		void assign(unsigned int num);
@@ -314,16 +354,16 @@ namespace json {
 		void assign(json_object object);
 
 		// оператор доступа
-		json_value & operator[](size_t index);
-		const json_value & operator[](size_t index) const;
+		json_value & operator[](int index);
+		const json_value & operator[](int index) const;
 		json_value & operator[](const char * key);
 		const json_value & operator[](const char * key) const;
 		json_value & operator[](const std::string & key);
 		const json_value & operator[](const std::string & key) const;
 
 		// оператор доступа с проверкой
-		json_value & at(size_t index);
-		const json_value & at(size_t index) const;
+		json_value & at(int index);
+		const json_value & at(int index) const;
 		json_value & at(const char * key);
 		const json_value & at(const char * key) const;
 		json_value & at(const std::string & string);
@@ -354,12 +394,13 @@ namespace json {
 		// удаляет элемент по индексу
 		void remove(size_t num);
 
-		// очистка 
+		// очистка (полное удаление данных)
 		void clear();
 
 		// удаляет с возвратом удаляемого значения
 		json_value extract(const char * key);
 		json_value extract(const std::string & key);
+		json_value extract(int index);
 
 		// возвращает тип
 		value_type type() const;
@@ -368,6 +409,8 @@ namespace json {
 		// проверки на соответствие типу
 		bool is_null() const;
 		bool is_bool() const;
+		bool is_int() const;
+		bool is_uint() const;
 		bool is_double() const;
 		bool is_string() const;
 		bool is_array() const;

@@ -3,13 +3,45 @@
 using namespace json;
 using namespace json::impl;
 
-json::impl::json_storage::json_storage() : _type (value_type::_null) {}
+value_error::value_error(error_code code) : base_error(error_category::value_error, 0, 0, form_message(code)) {}
 
-json::impl::json_storage::json_storage(const json_storage & other){
+std::string value_error::form_message(error_code code) {
+	switch (code) {
+	case json::value_error::error_code::_type_is_not_numberic:
+		return "is not numberic type";
+	case json::value_error::error_code::_type_is_not_array:
+		return "is not array";
+	case json::value_error::error_code::_type_is_not_object:
+		return "is not object";
+	case json::value_error::error_code::_type_is_not_object_or_array:
+		return "is not object or array";
+	case json::value_error::error_code::_index_out_of_array_size:
+		return "index outside of borders of array";
+	case json::value_error::error_code::_element_not_found:
+		return "element not found";
+	case json::value_error::error_code::_is_not_object_iterator:
+		return "is not object iterator";
+	case json::value_error::error_code::_is_not_const_object_iterator:
+		return "is not const object iterator";
+	case json::value_error::error_code::_is_not_array_iterator:
+		return "is not array iterator";
+	case json::value_error::error_code::_is_not_const_array_iterator:
+		return "is not const array iterator";
+	case json::value_error::error_code::_is_empty_iterator:
+		return "is empty iterator";
+	case json::value_error::error_code::_is_not_mutable_iterator:
+		return "is not metable iterator";
+	}
+}
+
+
+json_storage::json_storage() : _type (value_type::_null) {}
+
+json_storage::json_storage(const json_storage & other){
 	copy_data(other);
 }
 
-json::impl::json_storage::json_storage(json_storage && other) {
+json_storage::json_storage(json_storage && other) {
 	move_data(std::move(other));
 }
 
@@ -54,7 +86,7 @@ bool json_storage::operator!=(const json_storage & other) const {
 	return !(*this == other);
 }
 
-json::impl::json_storage::~json_storage() {
+json_storage::~json_storage() {
 	clear();
 }
 
@@ -79,8 +111,7 @@ value_type json_storage::type() const{
 
 void json_storage::type(value_type new_type){
 	clear();
-	_type = new_type;
-	switch (_type) {
+	switch (new_type) {
 	case value_type::_bool:
 		set<bool>(false);
 		break;
@@ -189,7 +220,7 @@ double json::impl::cast_to_double(const json_storage & data) {
 	case json::value_type::_double:
 		return *data.get<double>();
 	}
-	throw; // to-do бросок ошибки добавить
+	throw value_error(value_error::error_code::_type_is_not_numberic);
 }
 
 json_value_iterator::json_value_iterator() : _type(_iterator_type::_empty) {}
@@ -331,7 +362,7 @@ std::string json_value_iterator::key() const {
 	case json_value_iterator::_iterator_type::c_object:
 		return _data.const_object_iter->first;
 	default:
-		return ""; // вставить выброс ошибок
+		throw value_error(value_error::error_code::_is_not_object_iterator);
 	}
 }
 
@@ -342,7 +373,7 @@ jv_reference json_value_iterator::value() {
 	case json_value_iterator::_iterator_type::_object:
 		return _data.object_iter->second;
 	default:
-		break; // вставить выброс ошибок
+		throw value_error(value_error::error_code::_is_not_mutable_iterator);
 	}
 }
 
@@ -357,7 +388,7 @@ const jv_reference json_value_iterator::value() const {
 	case _iterator_type::c_object:
 		return const_cast<jv_reference>(_data.const_object_iter->second);
 	}
-	throw; // вставить выброс ошибок
+	throw value_error(value_error::error_code::_is_empty_iterator);
 }
 
 bool json_value_iterator::is_array_iterator() const {
@@ -380,28 +411,28 @@ json_value_iterator::array_iterator json_value_iterator::get_array_iterator() co
 	if (_type == _iterator_type::_array) {
 		return _data.arr_it;
 	}
-	throw; // ошибка
+	throw value_error(value_error::error_code::_is_not_array_iterator);
 }
 
 json_value_iterator::const_array_iterator json_value_iterator::get_const_array_iterator() const {
 	if (_type == _iterator_type::c_array) {
 		return _data.const_arr_it;
 	}
-	throw; // ошибка
+	throw value_error(value_error::error_code::_is_not_const_array_iterator);
 }
 
 json_value_iterator::object_iterator json_value_iterator::get_object_iterator() const {
 	if (_type == _iterator_type::_object) {
 		return _data.object_iter;
 	}
-	throw; // ошибка
+	throw value_error(value_error::error_code::_is_not_object_iterator);
 }
 
 json_value_iterator::const_object_iterator json_value_iterator::get_const_object_iterator() const {
 	if (_type == _iterator_type::c_object) {
 		return _data.const_object_iter;
 	}
-	throw; // ошибка
+	throw value_error(value_error::error_code::_is_not_const_object_iterator);
 }
 
 json_value_iterator::_iterator_type json_value_iterator::type() const {
@@ -488,6 +519,51 @@ json_value & json_value::operator=(json_value && val) {
 	return *this;
 }
 
+json_value & json::json_value::operator=(bool & val){
+	assign(val);
+	return *this;
+}
+
+json_value & json::json_value::operator=(char c){
+	assign(c);
+	return *this;
+}
+
+json_value & json::json_value::operator=(unsigned int num) {
+	assign(num);
+	return *this;
+}
+
+json_value & json::json_value::operator=(int num){
+	assign(num);
+	return *this;
+}
+
+json_value & json::json_value::operator=(double num){
+	assign(num);
+	return *this;
+}
+
+json_value & json::json_value::operator=(const std::string & string){
+	assign(string);
+	return *this;
+}
+
+json_value & json::json_value::operator=(const char * string) {
+	assign(string);
+	return *this;
+}
+
+json_value & json::json_value::operator=(json_array array){
+	assign(array);
+	return *this;
+}
+
+json_value & json::json_value::operator=(json_object object){
+	assign(object);
+	return *this;
+}
+
 json_value::~json_value() {
 	_storage->clear();
 }
@@ -556,6 +632,14 @@ json_object * json_value::as_object() const {
 	return const_cast<json_value*>(this)->as_object();
 }
 
+void json::json_value::assign(const json_value & jval){
+	*_storage = *jval._storage;
+}
+
+void json::json_value::assign(json_value && jval){
+	*_storage = std::move(*jval._storage);
+}
+
 void json::json_value::assign(bool & val) {
 	_storage->set<bool>(val);
 }
@@ -592,12 +676,15 @@ void json::json_value::assign(json_object object) {
 	_storage->set<json_object>(object);
 }
 
-json_value & json::json_value::operator[](size_t index) {
+json_value & json::json_value::operator[](int index) {
 	if (is_null()) {
 		type(value_type::_array);
 	}
 	if (!is_array()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_type_is_not_array);
+	}
+	if (index < 0) {
+		throw value_error(value_error::error_code::_index_out_of_array_size);
 	}
 	json_array * arr = _storage->get<json_array>();
 	if (index >= arr->size()) {
@@ -606,13 +693,13 @@ json_value & json::json_value::operator[](size_t index) {
 	return (*arr)[index];
 }
 
-const json_value & json::json_value::operator[](size_t index) const {
+const json_value & json::json_value::operator[](int index) const {
 	if (!is_array()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_type_is_not_array);
 	}
 	const json_array * arr = _storage->get<json_array>();
-	if (index >= arr->size()) {
-		throw; // to-do добавить бросок ошибок
+	if (index >= arr->size() || index < 0) {
+		throw value_error(value_error::error_code::_index_out_of_array_size);
 	}
 	return (*arr)[index];
 }
@@ -622,7 +709,7 @@ json_value & json::json_value::operator[](const char * key) {
 		type(value_type::_object);
 	}
 	if (!is_object()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_type_is_not_object);
 	}
 	json_object * obj = _storage->get<json_object>();
 	return (*obj)[key];
@@ -630,12 +717,12 @@ json_value & json::json_value::operator[](const char * key) {
 
 const json_value & json::json_value::operator[](const char * key) const {
 	if (!is_object()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_type_is_not_object);
 	}
 	const json_object * obj = _storage->get<json_object>();
 	auto res = obj->find(key);
 	if (res == obj->end()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_element_not_found);
 	}
 	return res->second;
 }
@@ -648,48 +735,41 @@ const json_value & json::json_value::operator[](const std::string & key) const {
 	return this->operator[](key.c_str());
 }
 
-json_value & json::json_value::at(size_t index){
+json_value & json::json_value::at(int index){
 	if (!is_array()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_type_is_not_array);
 	}
 	json_array * arr = _storage->get<json_array>();
-	if (index >= arr->size()) {
-		throw; // to-do добавить бросок ошибок
+	if (index >= arr->size() || index < 0) {
+		throw value_error(value_error::error_code::_index_out_of_array_size);
 	}
 	return (*arr)[index];
 }
 
-const json_value & json::json_value::at(size_t index) const {
-	if (!is_array()) {
-		throw; // to-do добавить бросок ошибок
-	}
-	const json_array * arr = _storage->get<json_array>();
-	if (index >= arr->size()) {
-		throw; // to-do добавить бросок ошибок
-	}
-	return (*arr)[index];
+const json_value & json::json_value::at(int index) const {
+	return const_cast<json_value*>(this)->at(index);
 }
 
 json_value & json::json_value::at(const char * key) {
 	if (!is_object()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_type_is_not_object);
 	}
 	json_object * obj = _storage->get<json_object>();
 	auto res = obj->find(key);
 	if (res == obj->end()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_element_not_found);
 	}
 	return res->second;
 }
 
 const json_value & json::json_value::at(const char * key) const {
 	if (!is_object()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_type_is_not_object);
 	}
 	const json_object * obj = _storage->get<json_object>();
-	const auto res = obj->find(key);
+	auto res = obj->find(key);
 	if (res == obj->end()) {
-		throw; // to-do добавить бросок ошибок
+		throw value_error(value_error::error_code::_element_not_found);
 	}
 	return res->second;
 }
@@ -738,7 +818,7 @@ json_pointer_array json_value::select(const char * key){
 
 jv_pointer json_value::add(const json_value & val) {
 	if (_storage->type() != value_type::_array) {
-		return nullptr;
+		throw value_error(value_error::error_code::_type_is_not_array);
 	}
 	jv_pointer result = nullptr;
 	switch (_storage->type()) {
@@ -752,7 +832,7 @@ jv_pointer json_value::add(const json_value & val) {
 
 jv_pointer json_value::add(json_value && val) {
 	if (_storage->type() != value_type::_array) {
-		return nullptr;
+		throw value_error(value_error::error_code::_type_is_not_array);
 	}
 	jv_pointer result = nullptr;
 	switch (_storage->type()) {
@@ -765,8 +845,8 @@ jv_pointer json_value::add(json_value && val) {
 }
 
 jv_pointer json_value::add(const char * name, const json_value & val) {
-	if (_storage->type() != value_type::_object) {
-		return nullptr;
+	if (_storage->type() != value_type::_object && _storage->type() != value_type::_array) {
+		throw value_error(value_error::error_code::_type_is_not_object_or_array);
 	}
 	jv_pointer result = nullptr;
 	switch (_storage->type()) {
@@ -783,8 +863,8 @@ jv_pointer json_value::add(const char * name, const json_value & val) {
 }
 
 jv_pointer json_value::add(const char * name, json_value && val) {
-	if (_storage->type() != value_type::_object) {
-		return nullptr;
+	if (_storage->type() != value_type::_object && _storage->type() != value_type::_array) {
+		throw value_error(value_error::error_code::_type_is_not_object_or_array);
 	}
 	jv_pointer result = nullptr;
 	switch (_storage->type()) {
@@ -810,7 +890,7 @@ jv_pointer json_value::add(const std::string & name, json_value && val) {
 
 void json_value::remove(const char * key){
 	if (_storage->type() != value_type::_object) {
-		return;
+		throw value_error(value_error::error_code::_type_is_not_object);
 	}
 	auto target = _storage->get<json_object>()->find(key);
 	if (target != _storage->get<json_object>()->end()) {
@@ -824,10 +904,10 @@ void json_value::remove(const std::string & key){
 
 void json_value::remove(size_t num){
 	if (_storage->type() != value_type::_array || num < 0) {
-		return;
+		throw value_error(value_error::error_code::_type_is_not_array);
 	}
-	if (num > _storage->get<json_array>()->size()) {
-		return;
+	if (num > _storage->get<json_array>()->size() || num < 1) {
+		throw value_error(value_error::error_code::_index_out_of_array_size);
 	}
 	_storage->get<json_array>()->erase(_storage->get<json_array>()->begin() + num);
 }
@@ -838,8 +918,7 @@ void json_value::clear(){
 
 json_value json_value::extract(const char * key){
 	if (_storage->type() != value_type::_object) {
-		throw; // ошибка
-		//return;
+		throw value_error(value_error::error_code::_type_is_not_object);
 	}
 	auto target = _storage->get<json_object>()->find(key);
 	json_value res = std::move(target->second);
@@ -853,12 +932,27 @@ json_value json_value::extract(const std::string & key){
 	return extract(key.c_str());
 }
 
+json_value json::json_value::extract(int index) {
+	if (_storage->type() != value_type::_array) {
+		throw value_error(value_error::error_code::_type_is_not_array);
+	}
+	auto arr = as_array();
+	if (index >= arr->size() || index < 0) {
+		throw value_error(value_error::error_code::_index_out_of_array_size);
+	}
+	auto target = std::move(arr->operator[](index));
+	arr->erase(arr->begin() + index);
+	return target;
+}
+
 value_type json_value::type() const {
 	return _storage->type();
 }
 
 void json_value::type(value_type _t) {
-	_storage->type(_t);
+	if (_t != _storage->type()) {
+		_storage->type(_t);
+	}
 }
 
 bool json_value::is_null() const {
@@ -867,6 +961,14 @@ bool json_value::is_null() const {
 
 bool json_value::is_bool() const {
 	return _storage->type() == value_type::_bool;
+}
+
+bool json::json_value::is_int() const{
+	return _storage->type() == value_type::_int;
+}
+
+bool json::json_value::is_uint() const {
+	return _storage->type() == value_type::_uint;
 }
 
 bool json_value::is_double() const {
@@ -894,15 +996,26 @@ size_t json_value::item_count(){
 	case value_type::_double:
 	case value_type::_bool:
 	case value_type::_string:
-		return 1;
+		count =  1;
+		break;
 	case value_type::_array:
-		for (size_t i = 0; i < _storage->get<json_array>()->size(); ++i) {
-			count += 1 + _storage->get<json_array>()->operator[](i).item_count();
+		// count += 1;
+		for (auto it = _storage->get<json_array>()->begin(); it != _storage->get<json_array>()->end(); ++it) {
+			count += it->item_count();
+			if (it->type() == value_type::_object) {
+				count++;
+			}
+
 		}
 		break;
 	case value_type::_object:
+	//	count += 1;
+//		count += _storage->get<json_object>()->size();
 		for (auto it = _storage->get<json_object>()->begin(); it != _storage->get<json_object>()->end(); ++it) {
-			count += 1 + it->second.item_count();
+			count += it->second.item_count();
+			if (it->second.type() == value_type::_object) {
+				count++;
+			}
 		}
 		break;
 	}
@@ -944,7 +1057,7 @@ json_value_iterator json_value::begin(){
 	case value_type::_object:
 		return json_value_iterator(_storage->get<json_object>()->begin());
 	default:
-		break; // вставить обработчик ошибки
+		throw value_error(value_error::error_code::_type_is_not_object_or_array);
 	}
 }
 
@@ -959,7 +1072,7 @@ json_value_iterator json_value::cbegin() const{
 	case value_type::_object:
 		return json_value_iterator(_storage->get<json_object>()->cbegin());
 	default:
-		break; // вставить обработчик ошибки
+		throw value_error(value_error::error_code::_type_is_not_object_or_array);
 	}
 }
 
@@ -970,7 +1083,7 @@ json_value_iterator json_value::end(){
 	case value_type::_object:
 		return json_value_iterator(_storage->get<json_object>()->end());
 	default:
-		break; // вставить обработчик ошибки
+		throw value_error(value_error::error_code::_type_is_not_object_or_array);
 	}
 }
 
@@ -985,7 +1098,7 @@ json_value_iterator json_value::cend() const {
 	case value_type::_object:
 		return json_value_iterator(_storage->get<json_object>()->cend());
 	default:
-		break; // вставить обработчик ошибки
+		throw value_error(value_error::error_code::_type_is_not_object_or_array);
 	}
 }
 
