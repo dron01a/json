@@ -1,6 +1,8 @@
 #ifndef _DRONJSON_PARSER_IMPL_
 #define _DRONJSON_PARSER_IMPL_
 
+#include <stack>
+
 #include "error.h"
 #include "tokenizer.h"
 #include "json_value.h"
@@ -79,24 +81,67 @@ namespace json {
 			// запуск парсинга
 			parse_result parse();
 
-			// установка режима сбора ошибок 
-			void set_collect_mode(bool val);  ///???
-
 		private:
 
-			// парсинг json-начения
-			json_value parse_json_value(std::vector<std::unique_ptr<base_error>> & errors);
+			using err_vect = std::vector<std::unique_ptr<base_error>>;
 
-			// парсинг массива 
-			json_value parse_array(std::vector<std::unique_ptr<base_error>> & errors);
+			// состояния
+			enum class state {
+				_start = 0 , // начало
+				_obj_begin, // начало объекта
+				_key, // парсинг ключа
+				_colon, // : 
+				_obj_value, // значение в объекте
+				_obj_next, // запятая когда парсим объект
+				_arr_begin, // начало массива
+				_arr_value, // значение в массиве
+				_arr_next, // запятая когда парсим массив 
+				_val, // значение
+				_end,  // конец
+				_err, // ошибка
+				_obj_end, // конец объекта 
+				_arr_end, // конец массива
+			};
 
-			// парсинг объекта
-			json_value parse_object(std::vector<std::unique_ptr<base_error>> & errors);
+			// таблица переходов
+			static constexpr state table[11][12] {
 
-			// собирает ошибки либо бросет ошибку
-			void collect_or_throw(std::vector<std::unique_ptr<base_error>> & errors, parse_error::error_code code);
+//                        {			        }		        число			     bool		        null			   строка			     [               ]              ,               :              конец
+/* _start */	 { state::_obj_begin, state::_err,     state::_val,	      state::_val,       state::_val,		state::_val,	   state::_arr_begin, state::_err,     state::_err,	     state::_err,   state::_end, state::_err },
+/* _obj_begin */ { state::_err,       state::_obj_end, state::_err,	      state::_err,       state::_err,		state::_key,	   state::_err,       state::_err,     state::_err,	     state::_err,   state::_err, state::_err },
+/* _key */       { state::_err,       state::_err,     state::_err,	      state::_err,       state::_err,		state::_err,	   state::_err,       state::_err,     state::_err,	     state::_colon, state::_err, state::_err },
+/* _colon */	 { state::_obj_begin, state::_err,     state::_obj_value, state::_obj_value, state::_obj_value, state::_obj_value, state::_arr_begin, state::_err,     state::_err,	     state::_err,   state::_err, state::_err },
+/* _obj_value */ { state::_err,       state::_obj_end, state::_err,       state::_err,       state::_err,       state::_err,       state::_err,       state::_err,     state::_obj_next, state::_err,   state::_err, state::_err },
+/* _obj_next */  { state::_err,       state::_err,     state::_err,       state::_err,       state::_err,       state::_key,       state::_err,       state::_err,     state::_err,      state::_err,   state::_err, state::_err },
+/* _arr_begin */ { state::_arr_value, state::_arr_end, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_begin, state::_arr_end, state::_err,      state::_err,   state::_err, state::_err },
+/* _arr_value */ { state::_err,       state::_err,     state::_err,       state::_err,       state::_err,       state::_err,       state::_err,       state::_arr_end, state::_arr_next, state::_err,   state::_err, state::_err },
+/* _arr_next */  { state::_arr_value, state::_err,     state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_end, state::_err,      state::_err,   state::_err, state::_err },
+/* _val */       { state::_err,       state::_err,     state::_err,       state::_err,		 state::_err,       state::_err,       state::_err,       state::_err,     state::_err,      state::_err,   state::_end, state::_err },
+/* _end */		 { state::_end,       state::_end,     state::_end,       state::_end,       state::_end,       state::_end,       state::_end,       state::_end,     state::_end,      state::_end,   state::_end, state::_end }
+			};
 
-			bool _collect_mode = false;
+			// преобразовние типа в индекс
+			size_t token_type_to_index(token_type type);
+			
+			// добавляет ошибку в вектор или выбрасывает ее дальше
+			void error_handler(token & cur, err_vect & errors, parse_error::error_code code);
+
+			// обраотчик состояния ключ объекта
+			void key_state_handler(token & cur);
+
+			// обраотчик состояния значение(объекта, массива и обычного)
+			void value_state_handler(token & cur);
+
+			// обработчик выхода из объекта или массива
+			void end_state_handler(token & cur);
+
+			// запуск конечного автомата
+			void run(err_vect & errors);
+
+			state _state = state::_start; // начальное состояние автомата
+			state _perv_state; // предыдущее состояние
+			std::stack<std::reference_wrapper<json_value>> _ref_stack; // стек ссылок
+			bool _collect_mode = false; // режим сбора ошибок
 			i_input_processor_ptr _input_proc; // входные данные
 			i_decoder_ptr _decoder; // декодер 
 			tokenizer_ptr _tokenizer; // токенайзер
