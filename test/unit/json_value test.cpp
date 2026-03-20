@@ -424,7 +424,11 @@ TEST_CASE(item_count) {
 	TEST_ASSERT(val.item_count() == 5);
 }
 
+#ifndef _ALL_TESTS_RUN
+
 int main() {
 	tester::inst().run();
 	return 0;
 }
+
+#endif // _ALL_TESTS_RUN

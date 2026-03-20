@@ -100,4 +100,16 @@ private:
 	} \
 	void name()\
 
+#define ASSERT_TOKEN_STRING(tok, str)\
+		TEST_ASSERT(tok.type() == json::io::token_type::_string);\
+		TEST_ASSERT(tok.string_data() == str);\
+
+#define ASSERT_TOKEN_NUMBER(tok, num)\
+		TEST_ASSERT(tok.type() == json::io::token_type::_number);\
+		TEST_ASSERT(tok.double_data() == num);\
+
+#define ASSERT_TOKEN_BOOL(tok, boolean)\
+		TEST_ASSERT(tok.type() == json::io::token_type::_false || tok.type() == json::io::token_type::_true);\
+		TEST_ASSERT(tok.type() == boolean);\
+
 #endif 

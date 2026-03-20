@@ -111,7 +111,12 @@ TEST_CASE(test_number) {
 	TEST_ASSERT(_storage1 == _storage3);
 }
 
+
+#ifndef _ALL_TESTS_RUN
+
 int main() {
 	tester::inst().run();
 	return 0;
 }
+
+#endif // _ALL_TESTS_RUN
