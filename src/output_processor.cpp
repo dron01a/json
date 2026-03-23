@@ -72,13 +72,49 @@ void json_output_processor::write_null() {
 	end_value();
 }
 
-void json_output_processor::write_digit(double data) {
+void json::io::json_output_processor::write_int(int data) {
 	before_value();
 	write_space();
-	if (std::isnan(data)) {
+	if (std::isnan((double)data)) {
 		_encoder->encode_string("NaN");
 	}
-	else if (std::isfinite(data)) {
+	else if (std::isinf((double)data)) {
+		if (data < 0) {
+			_encoder->encode_code('-');
+		}
+		_encoder->encode_string("Infinity");
+	}
+	else {
+		_encoder->encode_string(std::to_string(data));
+	}
+	end_value();
+}
+
+void json::io::json_output_processor::write_uint(unsigned int data) {
+	before_value();
+	write_space();
+	if (std::isnan((double)data)) {
+		_encoder->encode_string("NaN");
+	}
+	else if (std::isinf((double)data)) {
+		if (data < 0) {
+			_encoder->encode_code('-');
+		}
+		_encoder->encode_string("Infinity");
+	}
+	else {
+		_encoder->encode_string(std::to_string(data));
+	}
+	end_value();
+}
+
+void json_output_processor::write_double(double data) {
+	before_value();
+	write_space();
+	if (std::isnan((double)data)) {
+		_encoder->encode_string("NaN");
+	}
+	else if (std::isinf((double)data)) {
 		if (data < 0) {
 			_encoder->encode_code('-');
 		}
@@ -87,9 +123,11 @@ void json_output_processor::write_digit(double data) {
 	else {
 		std::string data_to_write = std::to_string(data);
 		if (data_to_write.find('.') != std::string::npos) {
-			data_to_write.erase(data_to_write.find_first_not_of('0') + 1, std::string::npos);
-			if (data_to_write.back()) {
-				data_to_write.back();
+			while (data_to_write.back() == '0') {
+				data_to_write.pop_back();
+			}
+			if (data_to_write.back() == '.') {
+				data_to_write.pop_back();
 			}
 		}
 		_encoder->encode_string(data_to_write);
@@ -157,7 +195,6 @@ void json::io::json_output_processor::before_value() {
 	}
 	if (_need_comma) {
 		write_comma();
-	//	write_indent();
 	}
 	write_indent();
 }
@@ -170,7 +207,6 @@ void json::io::json_output_processor::write_comma() {
 	_encoder->encode_code(',');
 	if (_format) {
 		write_space();
-		//write_new_line();
 	}
 }
 

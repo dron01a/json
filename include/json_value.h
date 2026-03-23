@@ -343,7 +343,7 @@ namespace json {
 		// функции присвоения
 		void assign(const json_value & jval);
 		void assign(json_value && jval);
-		void assign(bool & val);
+		void assign(bool val);
 		void assign(char с);
 		void assign(unsigned int num);
 		void assign(int num);

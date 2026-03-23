@@ -27,8 +27,14 @@ namespace json {
 			// запись null
 			virtual void write_null() = 0;
 
-			// запись числа
-			virtual void write_digit(double data) = 0;
+			// запись чисел типа int
+			virtual void write_int(int data) = 0;
+			
+			// запись чисел типа unsigned int 
+			virtual void write_uint(unsigned int data) = 0;
+			
+			// запись чисел типа double
+			virtual void write_double(double data) = 0;
 
 			// запись bool 
 			virtual void write_bool(bool data) = 0;
@@ -95,7 +101,9 @@ namespace json {
 			explicit json_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
 			void write_bom() override;
 			void write_null() override;
-			void write_digit(double data) override;
+			void write_int(int data) override;
+			void write_uint(unsigned int data) override;
+			void write_double(double data) override;
 			void write_bool(bool data) override;
 			void write_string(const char * data) override;
 			void begin_array() override; 

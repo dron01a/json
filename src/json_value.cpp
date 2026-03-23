@@ -640,7 +640,7 @@ void json::json_value::assign(json_value && jval){
 	*_storage = std::move(*jval._storage);
 }
 
-void json::json_value::assign(bool & val) {
+void json::json_value::assign(bool val) {
 	_storage->set<bool>(val);
 }
 
