@@ -47,21 +47,25 @@ namespace json {
 	class parse_error : public base_error {
 	public:
 		enum class error_code {
-			_error_token,
+			_invalid_token,
+			_invalid_token_expected_key, 
+			_invalid_token_expected_colon,
+			_invalid_token_expected_value,
+			_invalid_token_expected_end_of_next_value,
 			_invalid_value,
 			_invalid_array_value,
-			_invalid_object
+			_invalid_object_value
 		};
 
-		parse_error(error_code code, size_t line, size_t col);
+		parse_error(error_code code, size_t line, size_t col, std::string context);
 	private:
-		std::string form_message(error_code code);
+		std::string form_message(error_code code, std::string context);
 	};
 
 	// результат выполенния парсинга
 	struct parse_result {
 		bool valid = false; // флаг удачного или нет результата
-		json_value json_val; // значение json полученное в резульатате парсинга 
+		json_value json_val; // значение json полученное в результате парсинга 
 		std::vector<std::unique_ptr<base_error>> errors; // ошибки полученные при парсинге
 	};
 
@@ -98,13 +102,14 @@ namespace json {
 				_arr_next, // запятая когда парсим массив 
 				_val, // значение
 				_end,  // конец
-				_err, // ошибка
 				_obj_end, // конец объекта 
 				_arr_end, // конец массива
+				_comma, // запятая после завершения объекта или массива
+				_err, // ошибка
 			};
 
 			// таблица переходов
-			static constexpr state table[11][12] {
+			static constexpr state table[13][12] {
 
 //                        {			        }		        число			     bool		        null			   строка			     [               ]              ,               :              конец
 /* _start */	 { state::_obj_begin, state::_err,     state::_val,	      state::_val,       state::_val,		state::_val,	   state::_arr_begin, state::_err,     state::_err,	     state::_err,   state::_end, state::_err },
@@ -117,23 +122,49 @@ namespace json {
 /* _arr_value */ { state::_err,       state::_err,     state::_err,       state::_err,       state::_err,       state::_err,       state::_err,       state::_arr_end, state::_arr_next, state::_err,   state::_err, state::_err },
 /* _arr_next */  { state::_arr_value, state::_err,     state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_end, state::_err,      state::_err,   state::_err, state::_err },
 /* _val */       { state::_err,       state::_err,     state::_err,       state::_err,		 state::_err,       state::_err,       state::_err,       state::_err,     state::_err,      state::_err,   state::_end, state::_err },
-/* _end */		 { state::_end,       state::_end,     state::_end,       state::_end,       state::_end,       state::_end,       state::_end,       state::_end,     state::_end,      state::_end,   state::_end, state::_end }
+/* _end */		 { state::_end,       state::_end,     state::_end,       state::_end,       state::_end,       state::_end,       state::_end,       state::_end,     state::_end,      state::_end,   state::_end, state::_end },
+/* _obj_end */   { state::_err,       state::_obj_end, state::_err,       state::_err,       state::_err,       state::_err,       state::_err,       state::_arr_end, state::_comma,    state::_err,   state::_err, state::_err },
+/* _arr_end */   { state::_err,       state::_obj_end, state::_err,       state::_err,       state::_err,       state::_err,       state::_err,       state::_arr_end, state::_comma,    state::_err,   state::_err, state::_err },
+
 			};
 
 			// преобразовние типа в индекс
 			size_t token_type_to_index(token_type type);
 			
-			// добавляет ошибку в вектор или выбрасывает ее дальше
-			void error_handler(token & cur, err_vect & errors, parse_error::error_code code);
+			parse_error state_to_error(state st);
 
 			// обраотчик состояния ключ объекта
-			void key_state_handler(token & cur);
+			state key_state_handler();
 
-			// обраотчик состояния значение(объекта, массива и обычного)
-			void value_state_handler(token & cur);
+			// обработчик состояния _comma
+			state comma_state_handler();
+
+			// обработчик состояния _obj_begin
+			state obj_begin_state_handler();
+
+			// обработчик состояния _obj_value
+			state obj_value_state_handler();
+
+			// обработчик состояния _arr_begin
+			state arr_begin_state_handler();
+
+			// обработчик состояния _arr_value
+			state arr_value_state_handler();
+
+			// обработчик состояния _val
+			state value_state_handler();
+
+			// обработчик для остальных состояний
+			state default_handler();
+			
+			// добавляет ошибку в вектор или выбрасывает ее дальше
+			state error_handler(err_vect & errors);
 
 			// обработчик выхода из объекта или массива
-			void end_state_handler(token & cur);
+			state end_state_handler();
+			
+			// обраотчик состояния значение(объекта, массива и обычного)
+			void value_handler();
 
 			// запуск конечного автомата
 			void run(err_vect & errors);

@@ -25,20 +25,29 @@ parse_config json::standart() {
 	return parse_config();
 }
 
-parse_error::parse_error(error_code code, size_t line, size_t col)
-	: base_error(error_category::parse_error, line, col, form_message(code)) {}
+parse_error::parse_error(error_code code, size_t line, size_t col, std::string context)
+	: base_error(error_category::parse_error, line, col, form_message(code, context)) {}
 
-std::string parse_error::form_message(error_code code) {
+std::string parse_error::form_message(error_code code, std::string context) {
+	std::string _result;
 	switch (code) {
-	case parse_error::error_code::_error_token:
-		return "error token";
+	case parse_error::error_code::_invalid_token:
+		_result = "error token";
+		break;
 	case parse_error::error_code::_invalid_value:
-		return "invalid value";
+		_result = "invalid value";
+		break;
 	case parse_error::error_code::_invalid_array_value:
-		return "invalid array value";
-	case parse_error::error_code::_invalid_object:
-		return "invalid object";
+		_result = "invalid array value";
+		break;
+	case parse_error::error_code::_invalid_object_value:
+		_result = "invalid object value";
+		break;
 	}
+	if (!context.empty()) {
+		_result += ", " + context;
+	}
+	return _result;
 }
 
 dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config & conf){
@@ -68,9 +77,13 @@ dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config & conf){
 
 parse_result dom_parser_impl::parse(){
 	parse_result result;
+	while (!_ref_stack.empty()) { // на случай если парсер был запущен повторно очищаем стек
+		_ref_stack.pop();
+	}
 	_tokenizer = std::make_unique<tokenizer>(_input_proc, _decoder, result.errors);
 	_ref_stack.push(std::ref(result.json_val)); // добавляем ссылку на корень
 	try {
+		_state = state::_start;
 		run(result.errors);
 		_ref_stack.pop();
 	}
@@ -81,14 +94,6 @@ parse_result dom_parser_impl::parse(){
 		result.valid = true;
 	}
 	return result;
-}
-
-void dom_parser_impl::error_handler(token & cur, err_vect & errors, parse_error::error_code code) {
-	if (!_collect_mode) {
-		throw parse_error(code, _input_proc->line(), _input_proc->col());
-	}
-	errors.push_back(std::make_unique<parse_error>(code, _input_proc->line(), _input_proc->col()));
-	_state = _perv_state;
 }
 
 size_t json::impl::dom_parser_impl::token_type_to_index(token_type type) {
@@ -121,13 +126,138 @@ size_t json::impl::dom_parser_impl::token_type_to_index(token_type type) {
 	return 11;
 }
 
-void json::impl::dom_parser_impl::key_state_handler(token & cur) {
-	_ref_stack.top().get().as_object()->operator[](cur.string_data());
-	_ref_stack.push(std::ref(_ref_stack.top().get().as_object()->operator[](cur.string_data())));
+parse_error json::impl::dom_parser_impl::state_to_error(state st){
+	switch (st) {
+	case json::impl::dom_parser_impl::state::_start:
+		return { parse_error::error_code::_invalid_token,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected the begin of object, array or value" };
+	case json::impl::dom_parser_impl::state::_obj_begin:
+		return { parse_error::error_code::_invalid_token,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected the key" };
+	case json::impl::dom_parser_impl::state::_key:
+		return { parse_error::error_code::_invalid_token,
+			     _input_proc->line(),
+			     _input_proc->col(), "expected the \":\"" };
+	case json::impl::dom_parser_impl::state::_colon:
+		return { parse_error::error_code::_invalid_token,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected value" };
+	case json::impl::dom_parser_impl::state::_obj_value:
+		return { parse_error::error_code::_invalid_object_value,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected \"}\" or \",\"" };
+	case json::impl::dom_parser_impl::state::_obj_next:
+		return { parse_error::error_code::_invalid_object_value,
+			     _input_proc->line(),
+			     _input_proc->col(),
+			     "expected the key" };
+	case json::impl::dom_parser_impl::state::_arr_begin:
+		return { parse_error::error_code::_invalid_array_value,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected the begin of object, array or value" };
+	case json::impl::dom_parser_impl::state::_arr_value:
+		return { parse_error::error_code::_invalid_array_value,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected \"]\" or \",\"" };
+	case json::impl::dom_parser_impl::state::_arr_next:
+		return { parse_error::error_code::_invalid_array_value,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected the begin of object, array or value" };
+	case json::impl::dom_parser_impl::state::_val:
+		return { parse_error::error_code::_invalid_value,
+			     _input_proc->line(),
+			     _input_proc->col(),
+			     "expected the end" };
+	case json::impl::dom_parser_impl::state::_obj_end:
+		return { parse_error::error_code::_invalid_object_value,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected \"}\", \"]\" or \",\"" };
+	case json::impl::dom_parser_impl::state::_arr_end:
+		return { parse_error::error_code::_invalid_array_value,
+				 _input_proc->line(),
+				 _input_proc->col(),
+				 "expected \"}\", \"]\" or \",\"" };
+	}
 }
 
-void json::impl::dom_parser_impl::value_state_handler(token & cur) {
-	switch (cur.type()) {
+json::impl::dom_parser_impl::state dom_parser_impl::key_state_handler() {
+	_ref_stack.top().get().as_object()->operator[](_tokenizer->last().string_data());
+	_ref_stack.push(std::ref(_ref_stack.top().get().as_object()->operator[](_tokenizer->last().string_data())));
+	return default_handler();
+}
+
+json::impl::dom_parser_impl::state dom_parser_impl::comma_state_handler() {
+	switch (_ref_stack.top().get().type()) {
+	case value_type::_array:
+		return state::_arr_next;
+	case value_type::_object:
+		return state::_obj_next;
+	}
+}
+
+json::impl::dom_parser_impl::state dom_parser_impl::obj_begin_state_handler() {
+	_ref_stack.top().get().type(value_type::_object);
+	return default_handler();
+}
+
+json::impl::dom_parser_impl::state dom_parser_impl::obj_value_state_handler() {
+	value_handler();
+	_ref_stack.pop(); // выбрасываем предыдущий элемент
+	return default_handler();
+}
+
+json::impl::dom_parser_impl::state dom_parser_impl::arr_begin_state_handler() {
+	_ref_stack.top().get().type(value_type::_array);
+	return default_handler();
+}
+
+json::impl::dom_parser_impl::state dom_parser_impl::arr_value_state_handler() {
+	_ref_stack.top().get().as_array()->push_back(json_value());
+	_ref_stack.push(std::ref(_ref_stack.top().get().as_array()->back()));
+	switch (_tokenizer->last().type()) {
+	case token_type::_open_curly_brt:
+		_perv_state = _state;
+		return state::_obj_begin;
+	case token_type::_open_square_brt:
+		_perv_state = _state;
+		return state::_arr_begin;
+	}
+	value_handler();
+	_ref_stack.pop(); // выбрасываем предыдущий элемент
+	return default_handler();
+}
+
+json::impl::dom_parser_impl::state dom_parser_impl::value_state_handler() {
+	value_handler();
+	return default_handler();
+}
+
+json::impl::dom_parser_impl::state dom_parser_impl::default_handler(){
+	_tokenizer->next();
+	_perv_state = _state;
+	return table[(size_t)_state][token_type_to_index(_tokenizer->last().type())];
+}
+
+json::impl::dom_parser_impl::state dom_parser_impl::end_state_handler() {
+	if (_ref_stack.size() > 1) {
+		_ref_stack.pop();
+		return default_handler();
+	}
+	return state::_end;
+}
+
+void json::impl::dom_parser_impl::value_handler() {
+	switch (_tokenizer->last().type()) {
 	case token_type::_false:
 		_ref_stack.top().get().assign(false);
 		break;
@@ -135,86 +265,64 @@ void json::impl::dom_parser_impl::value_state_handler(token & cur) {
 		_ref_stack.top().get().assign(true);
 		break;
 	case token_type::_string:
-		_ref_stack.top().get().assign(cur.string_data());
+		_ref_stack.top().get().assign(_tokenizer->last().string_data());
 		break;
 	case token_type::_number:
-		_ref_stack.top().get().assign(cur.double_data());
+		_ref_stack.top().get().assign(_tokenizer->last().double_data());
 		break;
 	case token_type::_null:
 		_ref_stack.top().get().type(value_type::_null);
 		break;
-	default:
-		// to-do проверить не нужен ли throw
-		break;
 	}
-	
 }
 
-void json::impl::dom_parser_impl::end_state_handler(token & cur) {
-	if (_ref_stack.size() > 1) {
-	    _ref_stack.pop();
-		switch (_ref_stack.top().get().type()) {
-		case value_type::_array:
-			_state = state::_arr_value;
-			break;
-		case value_type::_object:
-			_state = state::_obj_value;
-			break;
-		}
+json::impl::dom_parser_impl::state dom_parser_impl::error_handler(err_vect & errors) {
+	parse_error _err = state_to_error(_perv_state);
+	if (!_collect_mode) {
+		throw _err;
 	}
-	else {
-		_state = state::_end;
-	}
+	errors.push_back(std::make_unique<parse_error>(_err));
+	_state = state::_start;
+	return default_handler();
 }
 
 void json::impl::dom_parser_impl::run(err_vect & errors) {
-	token cur_token = _tokenizer->next();
-	_state = table[(size_t)_state][token_type_to_index(cur_token.type())];
-	_perv_state = _state;
 	while (_state != state::_end) {
 		switch (_state) {
+		case state::_start:
+			_state = default_handler();
+			break;
+		case state::_comma:
+			_state = comma_state_handler();
+			break;
 		case json::impl::dom_parser_impl::state::_obj_begin:
-			_ref_stack.top().get().type(value_type::_object);
+			_state = obj_begin_state_handler();
 			break;
 		case json::impl::dom_parser_impl::state::_key:
-			key_state_handler(cur_token);
+			_state = key_state_handler();
 			break;
 		case json::impl::dom_parser_impl::state::_obj_value:
-			value_state_handler(cur_token);
-			_ref_stack.pop(); // выбрасываем предыдущий элемент
+			_state = obj_value_state_handler();
 			break;
 		case json::impl::dom_parser_impl::state::_arr_begin:
-			_ref_stack.top().get().type(value_type::_array);
+			_state = arr_begin_state_handler();
 			break;
 		case json::impl::dom_parser_impl::state::_arr_value:
-			_ref_stack.top().get().as_array()->push_back(json_value());
-			_ref_stack.push(std::ref(_ref_stack.top().get().as_array()->back()));
-			switch (cur_token.type()) {
-			case token_type::_open_curly_brt:
-				_perv_state = _state;
-				_state = state::_obj_begin;
-				continue;
-			case token_type::_open_square_brt:
-				_perv_state = _state;
-				_state = state::_arr_begin;
-				continue;
-			}
-			value_state_handler(cur_token);
-			_ref_stack.pop(); // выбрасываем предыдущий элемент
+			_state = arr_value_state_handler();
 			break;
 		case json::impl::dom_parser_impl::state::_val:
-			value_state_handler(cur_token);
+			_state = value_state_handler();
 			break;
-		case json::impl::dom_parser_impl::state::_err:
-			error_handler(cur_token, errors, parse_error::error_code::_error_token);
-			continue;
 		case json::impl::dom_parser_impl::state::_obj_end:
 		case json::impl::dom_parser_impl::state::_arr_end:
-			end_state_handler(cur_token);
+			_state = end_state_handler();
+			break;
+		case json::impl::dom_parser_impl::state::_err:
+			_state = error_handler(errors);
+			break;
+		default:
+			_state = default_handler();
 			break;
 		}
-		cur_token = _tokenizer->next();
-		_perv_state = _state;
-		_state = table[(size_t)_state][token_type_to_index(cur_token.type())];
 	}
 }
