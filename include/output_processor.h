@@ -130,7 +130,33 @@ namespace json {
 
 		// выодит json как xml
 		class xml_output_processor : public i_output_processor {
+		public:
+			// конструктор 
+			explicit xml_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
+			void write_bom() override;
+			void write_null() override;
+			void write_int(int data) override;
+			void write_uint(unsigned int data) override;
+			void write_double(double data) override;
+			void write_bool(bool data) override;
+			void write_string(const char * data) override;
+			void begin_array() override;
+			void end_array() override;
+			void begin_object() override;
+			void end_object() override;
+			void write_key(const char * key) override;
 
+		private :
+			
+			// передварительная подготовка перед записью значения 
+			void before_value();
+
+			// записывает закрывающий тег
+			void write_close_tag();
+
+			std::stack<std::string> _tag_names; // имена тегов для записи закрвающих тегов
+			bool _in_array_flag; // флаг для навигации (true, если находимся в массиве)
+			size_t _arr_level; // для записи вложенных массивов  
 		};
 
 		using i_output_processor_ptr = std::unique_ptr<i_output_processor>;

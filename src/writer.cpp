@@ -49,20 +49,6 @@ size_t & json::write_config::space_size(){
 	return _space_size;
 }
 
-json::io::write_error::write_error(error_code code, size_t line, size_t col) :
-	base_error(error_category::output_error, line, col, form_message(code)){}
-
-std::string json::io::write_error::form_message(error_code code){
-	switch (code){
-	case json::io::write_error::error_code::_invalid_file:
-		return "invalid file";
-	case json::io::write_error::error_code::_invalis_string:
-		return "invalid string";
-	case json::io::write_error::error_code::_invalid_stream:
-		return "invalid stream";
-	}
-}
-
 writer_impl::writer_impl(i_output_ptr_ref output, write_config conf) : _output(output) {
 	switch (conf.encoding()){
 	case write_config::encoding_mode::ascii:
@@ -76,9 +62,9 @@ writer_impl::writer_impl(i_output_ptr_ref output, write_config conf) : _output(o
 	case write_config::sinax_mode::JSON:
 		_output_proc = std::make_unique<json_output_processor>(_encoder, conf.chesk_flag(write_flags::format));
 		break;
-	/*case write_config::sinax_mode::XML:
+	case write_config::sinax_mode::XML:
 		_output_proc = std::make_unique<xml_output_processor>(_encoder, conf.chesk_flag(write_flags::format));
-		break;*/
+		break;
 	}
 	_output_proc->set_indent(conf.indent());
 	_output_proc->set_space(conf.chesk_flag(write_flags::using_tabs) ? '\t' : conf.space());
@@ -103,8 +89,14 @@ void writer_impl::write_value(const json_value & json_val, write_result & res) {
 	case value_type::_bool:
 		_output_proc->write_bool(json_val.as_bool());
 		break;
-	case value_type::_number:
-		_output_proc->write_digit(json_val.as_num());
+	case value_type::_int:
+		_output_proc->write_int(json_val.as_int());
+		break;
+	case value_type::_uint:
+		_output_proc->write_uint(json_val.as_uint());
+		break;
+	case value_type::_double:
+		_output_proc->write_double(json_val.as_double());
 		break;
 	case value_type::_string:
 		_output_proc->write_string(json_val.as_string().c_str());
