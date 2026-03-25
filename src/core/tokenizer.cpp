@@ -1,4 +1,4 @@
-#include "tokenizer.h"
+#include "core\tokenizer.h"
 
 using namespace json;
 using namespace json::io;

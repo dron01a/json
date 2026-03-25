@@ -1,4 +1,4 @@
-#include "encoding.h"
+#include "core\encoding.h"
 
 using namespace json;
 using namespace json::io_base;

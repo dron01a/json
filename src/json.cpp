@@ -108,7 +108,7 @@ std::string json::xml_convert::to_string(const json_value & val, write_config co
 	std::string _result;
 	i_output_ptr _output = std::make_unique<string_output>(_result);
 	if (!_output->ready()) {
-		return;
+		return "";
 	}
 	convert(_output, val, config);
 	return _result;

@@ -59,8 +59,7 @@ namespace json {
 	private:
 
 		// основная функция для конвертации
-		static void convert(i_output_ptr_ref out, const json_value & val, write_config config);
-
+		static void convert(io_base::i_output_ptr_ref out, const json_value & val, write_config config);
 	};
 
 }
