@@ -48,13 +48,18 @@ namespace json {
 	class xml_convert {
 	public:
 		// запись в файл 
-		static void to_file(const json_value & val, const char * file_name, write_config config, const char * root_name = "root");
+		static void to_file(const json_value & val, const char * file_name, write_config config);
 
 		// запись в поток 
-		static void to_stream(const json_value & val, std::ostream & stream, write_config config, const char * root_name = "root");
+		static void to_stream(const json_value & val, std::ostream & stream, write_config config);
 
 		// запись в строку
-		static std::string to_string(const json_value & val, write_config config, const char * root_name = "root");
+		static std::string to_string(const json_value & val, write_config config);
+	
+	private:
+
+		// основная функция для конвертации
+		static void convert(i_output_ptr_ref out, const json_value & val, write_config config);
 
 	};
 

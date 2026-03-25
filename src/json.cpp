@@ -84,6 +84,48 @@ write_result json::writer::to_string(const json_value & val, std::string & dest,
 		return res;
 	}
 	writer_impl _writer(_output, config);
-	_writer.write(val);
+	res = _writer.write(val);
 	return res;
+}
+
+void json::xml_convert::to_file(const json_value & val, const char * file_name, write_config config) {
+	i_output_ptr _output = std::make_unique<file_output>(file_name);
+	if (!_output->ready()) {
+		return;
+	}
+	convert(_output, val, config);
+}
+
+void json::xml_convert::to_stream(const json_value & val, std::ostream & stream, write_config config) {
+	i_output_ptr _output = std::make_unique<stream_output>(stream);
+	if (!_output->ready()) {
+		return;
+	}
+	convert(_output, val, config);
+}
+
+std::string json::xml_convert::to_string(const json_value & val, write_config config) {
+	std::string _result;
+	i_output_ptr _output = std::make_unique<string_output>(result);
+	if (!_output->ready()) {
+		return;
+	}
+	convert(_output, val, config);
+	return _result;
+}
+
+void json::xml_convert::convert(i_output_ptr_ref out, const json_value & val, write_config config) {
+	config.sinax() = write_config::sinax_mode::XML;
+	out->out_data("<?xml version=\"1.0\" encoding=");
+	switch (config.encoding()) {
+	case encoding::ascii:
+		out->out_data("\"ascii\"");
+		break;
+	case encoding::utf8:
+		out->out_data("\"utf-8\"");
+		break;
+	}
+	out->out_data("?>");
+	writer_impl _writer(out, config);
+	_writer.write(val);
 }
