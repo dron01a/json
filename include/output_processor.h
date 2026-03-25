@@ -157,6 +157,8 @@ namespace json {
 			std::stack<std::string> _tag_names; // имена тегов для записи закрвающих тегов
 			bool _in_array_flag; // флаг для навигации (true, если находимся в массиве)
 			size_t _arr_level; // для записи вложенных массивов  
+			size_t _obj_level; // для записи вложенности объектов
+			
 		};
 
 		using i_output_processor_ptr = std::unique_ptr<i_output_processor>;

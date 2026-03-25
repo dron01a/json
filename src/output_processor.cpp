@@ -110,7 +110,6 @@ void json::io::json_output_processor::write_uint(unsigned int data) {
 
 void json_output_processor::write_double(double data) {
 	before_value();
-	write_space();
 	if (std::isnan((double)data)) {
 		_encoder->encode_string("NaN");
 	}
@@ -230,7 +229,6 @@ void json::io::xml_output_processor::write_bom() {
 void json::io::xml_output_processor::write_null() {
 	before_value();
 	_encoder->encode_string("0");
-	//write_indent();
 	_indent_level--;
 	write_close_tag();
 }
@@ -243,7 +241,6 @@ void json::io::xml_output_processor::write_int(int data) {
 	else {
 		_encoder->encode_string(std::to_string(data));
 	}
-	//write_indent();
 	_indent_level--;
 	write_close_tag();
 }
@@ -256,7 +253,6 @@ void json::io::xml_output_processor::write_uint(unsigned int data) {
 	else {
 		_encoder->encode_string(std::to_string(data));
 	}
-	//write_indent();
 	_indent_level--;
 	write_close_tag();
 }
@@ -278,7 +274,6 @@ void json::io::xml_output_processor::write_double(double data) {
 		}
 		_encoder->encode_string(data_to_write);
 	}
-	//write_indent();
 	_indent_level--;
 	write_close_tag();
 }
@@ -291,7 +286,6 @@ void json::io::xml_output_processor::write_bool(bool data) {
 	else {
 		_encoder->encode_string("\"false\"");
 	}
-	//write_indent();
 	_indent_level--;
 	write_close_tag();
 }
@@ -299,14 +293,11 @@ void json::io::xml_output_processor::write_bool(bool data) {
 void json::io::xml_output_processor::write_string(const char * data) {
 	before_value();
 	_encoder->encode_string(data);
-//	write_indent();
 	_indent_level--;
 	write_close_tag();
 }
 
 void json::io::xml_output_processor::begin_array() {
-	//write_key(_tag_names.top().c_str());
-	_indent_level++;
 	_arr_level++;
 	_in_array_flag = true;
 }
@@ -321,14 +312,15 @@ void json::io::xml_output_processor::end_array() {
 }
 
 void json::io::xml_output_processor::begin_object() {
-	if (!_in_array_flag) {
-		
+	if (_obj_level == 0 ) {
+		_indent_level++;
 	}
-	_indent_level++;
+	_obj_level++;
 }
 
 void json::io::xml_output_processor::end_object() {
 	_indent_level--;
+	_obj_level--;
 	write_close_tag();
 }
 
@@ -336,15 +328,16 @@ void json::io::xml_output_processor::write_key(const char * key) {
 	write_indent();
 	_tag_names.push(key);
 	_encoder->encode_string("<" + _tag_names.top() + ">");
+	_encoder->encode_string("[" + std::to_string(_indent_level) + "]");
 	_indent_level++;
 }
 
 void json::io::xml_output_processor::before_value() {
-	write_indent();
-	write_space();
 	if (_in_array_flag) {
 		write_key("array_item");
 	}
+		write_space();
+		write_indent();
 }
 
 void json::io::xml_output_processor::write_close_tag() {
@@ -354,5 +347,6 @@ void json::io::xml_output_processor::write_close_tag() {
 		_encoder->encode_code('\\');
 		_encoder->encode_string(_tag_names.top() + ">");
 		_tag_names.pop();
+		_encoder->encode_string("[" + std::to_string(_indent_level) + "]");
 	}
 }
