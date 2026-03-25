@@ -69,6 +69,9 @@ public:
 	bool eof() override {
 		return _pos >= _data.size();
 	}
+	json::encoding type() {
+		return json::encoding::ascii;
+	}
 
 private:
 

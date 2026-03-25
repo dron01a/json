@@ -6,10 +6,10 @@ using namespace json::io_base;
 using namespace json::impl;
 using namespace json::encodings;
 
-parse_config::parse_config(encoding_mode enc, sinax_mode sm, error_mode em) :
+parse_config::parse_config(json::encoding enc, sinax_mode sm, error_mode em) :
 	_encoding(enc), _sinax_mode(sm), _error_mode(em) {}
 
-parse_config::encoding_mode & parse_config::encoding() {
+encoding & parse_config::encoding() {
 	return _encoding;
 }
 
@@ -51,14 +51,7 @@ std::string parse_error::form_message(error_code code, std::string context) {
 }
 
 dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config & conf){
-	switch (conf.encoding()) {
-	case parse_config::encoding_mode::ascii:
-		_decoder = std::make_unique<ascii_decoder>(input);
-		break;
-	case parse_config::encoding_mode::utf8:
-		_decoder = std::make_unique<utf8_decoder>(input);
-		break;
-	}
+	_decoder = make_decoder(conf.encoding(), input);
 	switch (conf.sinax()) {
 	case parse_config::sinax_mode::STANDART:
 		_input_proc = std::make_unique<json_input_processor>();
@@ -66,9 +59,6 @@ dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config & conf){
 	case parse_config::sinax_mode::JSON5:
 		_input_proc = std::make_unique<json5_input_processor>();
 		break;
-	/*case parse_config::sinax_mode::YALM:
-		_input_proc = std::make_unique<yalm_input_processor>();
-		break;*/
 	}
 	if (conf.error_halding() == parse_config::error_mode::collect) {
 		_collect_mode = true;

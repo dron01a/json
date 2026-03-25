@@ -26,7 +26,6 @@ namespace json {
 	// конфигурация записи
 	class write_config {
 	public:
-		enum class encoding_mode : uint8_t { ascii, utf8 };
 
 		// режимы синтаксиса
 		enum class sinax_mode : uint8_t { JSON, XML };
@@ -35,12 +34,12 @@ namespace json {
 		enum class error_mode : uint8_t { strict, collect };
 		
 		// конструктор класса
-		write_config(encoding_mode enc = encoding_mode::ascii,
+		write_config(encoding enc = encoding::ascii,
 			sinax_mode sm = sinax_mode::JSON,
 			error_mode em = error_mode::strict);
 
 		// возвращает текущюю кодировку
-		encoding_mode & encoding();
+		encoding & encoding();
 
 		// возвращает текущий синтаксис
 		sinax_mode & sinax();
@@ -71,7 +70,7 @@ namespace json {
 
 	private:
 		uint32_t _flags; // флаги
-		encoding_mode _encoding;
+		json::encoding _encoding;
 		sinax_mode _sinax_mode;
 		error_mode _error_mode;
 		size_t _indent_size = 2; 

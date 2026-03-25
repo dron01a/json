@@ -44,6 +44,20 @@ namespace json {
 
 	};
 
+	// интерфейс для конвертации в xml
+	class xml_convert {
+	public:
+		// запись в файл 
+		static void to_file(const json_value & val, const char * file_name, write_config config, const char * root_name = "root");
+
+		// запись в поток 
+		static void to_stream(const json_value & val, std::ostream & stream, write_config config, const char * root_name = "root");
+
+		// запись в строку
+		static std::string to_string(const json_value & val, write_config config, const char * root_name = "root");
+
+	};
+
 }
 
 #endif

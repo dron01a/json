@@ -43,7 +43,12 @@ bool base_decoder::eof() {
 	return _eof || _input->eof();
 }
 
+encoding json::encodings::base_decoder::type() {
+	return _type;
+}
+
 utf8_decoder::utf8_decoder(io_base::i_input_ptr_ref input) : base_decoder(input) {
+	_type = encoding::utf8;
 	_bom = skip_bom();
 }
 
@@ -79,41 +84,33 @@ char32_t utf8_decoder::read_impl() {
 	if (first <= 0x7F) {
 		return static_cast<char32_t>(first);
 	}
-	int lenght = 0;
+	int length = 0;
+	uint8_t mask = 0;
+	uint32_t code = 0;
 	if ((first & 0xE0) == 0xC0) {
-		lenght = 2;
+		length = 2;
+		code = first & 0x1F;
 	}
 	else if ((first & 0xF0) == 0xE0) {
-		lenght = 3;
+		length = 3;
+		code = first & 0x0F;
 	}
 	else  if ((first & 0xF8) == 0xF0) {
-		lenght = 4;
+		length = 4;
+		code = first & 0x07;
 	}
 	else {
+		_position++;
 		return 0xFFFD;
 	}
-	uint8_t bytes[4] = { first };
-	for (size_t i = 1; i < lenght; ++i) {
+	for (size_t i = 1; i < length; ++i) {
 		_c = _input->next_char();
 		if (_c == std::char_traits<char>::eof()) {
 			return std::char_traits<char>::eof();
 		}
-		bytes[i] = static_cast<uint8_t>(_c);
+		code = (code << 6) | (_c & 0x03F);
 	}
-	_position += lenght;
-	uint32_t code;
-	switch (lenght) {
-	case 2:
-		code = (first & 0x1F) << 6 | (bytes[1] & 0x3F);
-		break;
-	case 3:
-		code = (first & 0x0F) << 12 | (bytes[1] & 0x3F) << 6 | (bytes[2] & 0x3F);
-		break;
-	case 4:
-		code = (first & 0x07) << 18 | (bytes[1] & 0x3F) << 12 | (bytes[2] & 0x3F) << 6 | (bytes[3] & 0x3F);
-		break;
-	}
-	if ((lenght == 2 && code < 0x80) || (lenght == 3 && code < 0x800) || (lenght == 4 && code < 0x10000)) {
+	if ((length == 2 && code < 0x80) || (length == 3 && code < 0x800) || (length == 4 && code < 0x10000)) {
 		return 0xFFFD;
 	}
 	return static_cast<char32_t>(code);
@@ -139,7 +136,9 @@ bool utf8_decoder::skip_bom(){
 	return false;
 }
 
-ascii_decoder::ascii_decoder(i_input_ptr_ref input) : base_decoder(input) {}
+ascii_decoder::ascii_decoder(i_input_ptr_ref input) : base_decoder(input) {
+	_type = encoding::ascii;
+}
 
 char32_t ascii_decoder::next_char(){
 	if (!_buff.empty()) {
@@ -263,6 +262,10 @@ void json::encodings::utf8_encoder::add_bom() {
 	_output->out_data('\xBF');
 }
 
+io_base::i_output_ptr_ref json::encodings::utf8_encoder::output() {
+	return _output;
+}
+
 json::encodings::ascii_encoder::ascii_encoder(io_base::i_output_ptr_ref dest) : _output(dest) {}
 
 void json::encodings::ascii_encoder::encode_code(char32_t code) {
@@ -307,4 +310,27 @@ void json::encodings::ascii_encoder::encode_string(const std::string & string) {
 			break;
 		}
 	}
+}
+
+io_base::i_output_ptr_ref json::encodings::ascii_encoder::output() {
+	return _output;
+}
+
+encodings::i_decoder_ptr json::make_decoder(encoding enc, io_base::i_input_ptr_ref input) {
+	switch (enc){
+	case json::encoding::ascii:
+		return std::make_unique<ascii_decoder>(input);
+	case json::encoding::utf8:
+		return std::make_unique<utf8_decoder>(input);
+	}
+
+}
+
+encodings::i_encoder_ptr json::make_encoder(encoding enc, io_base::i_output_ptr_ref output) {
+	switch (enc) {
+	case json::encoding::ascii:
+		return std::make_unique<ascii_encoder>(output);
+	case json::encoding::utf8:
+		return std::make_unique<utf8_encoder>(output);
+	};
 }

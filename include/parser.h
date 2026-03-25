@@ -12,22 +12,20 @@ namespace json {
 	// класс конфигурации парсинга 
 	class parse_config {
 	public:
-		// кодировки
-		enum class encoding_mode : uint8_t { ascii, utf8 };
 
 		// режимы синтаксиса
-		enum class sinax_mode : uint8_t { STANDART = 0, JSON5, YALM };
+		enum class sinax_mode : uint8_t { STANDART = 0, JSON5};
 
 		// режимы сбора ошибок
 		enum class error_mode : uint8_t { strict, collect };
 
 		// конструктор класса
-		parse_config(encoding_mode enc = encoding_mode::ascii,
+		parse_config(encoding enc = encoding::ascii,
 			sinax_mode sm = sinax_mode::STANDART,
 			error_mode em = error_mode::strict);
 
 		// возвращает текущюю кодировку
-		encoding_mode & encoding();
+		encoding & encoding();
 
 		// возвращает текущий синтаксис
 		sinax_mode & sinax();
@@ -36,7 +34,7 @@ namespace json {
 		error_mode & error_halding();
 
 	private:
-		encoding_mode _encoding;
+		json::encoding _encoding;
 		sinax_mode _sinax_mode;
 		error_mode _error_mode;
 	};
@@ -117,10 +115,10 @@ namespace json {
 /* _key */       { state::_err,       state::_err,     state::_err,	      state::_err,       state::_err,		state::_err,	   state::_err,       state::_err,     state::_err,	     state::_colon, state::_err, state::_err },
 /* _colon */	 { state::_obj_begin, state::_err,     state::_obj_value, state::_obj_value, state::_obj_value, state::_obj_value, state::_arr_begin, state::_err,     state::_err,	     state::_err,   state::_err, state::_err },
 /* _obj_value */ { state::_err,       state::_obj_end, state::_err,       state::_err,       state::_err,       state::_err,       state::_err,       state::_err,     state::_obj_next, state::_err,   state::_err, state::_err },
-/* _obj_next */  { state::_err,       state::_err,     state::_err,       state::_err,       state::_err,       state::_key,       state::_err,       state::_err,     state::_err,      state::_err,   state::_err, state::_err },
+/* _obj_next */  { state::_err,       state::_obj_end, state::_err,       state::_err,       state::_err,       state::_key,       state::_err,       state::_err,     state::_err,      state::_err,   state::_err, state::_err },
 /* _arr_begin */ { state::_arr_value, state::_arr_end, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_begin, state::_arr_end, state::_err,      state::_err,   state::_err, state::_err },
 /* _arr_value */ { state::_err,       state::_err,     state::_err,       state::_err,       state::_err,       state::_err,       state::_err,       state::_arr_end, state::_arr_next, state::_err,   state::_err, state::_err },
-/* _arr_next */  { state::_arr_value, state::_err,     state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_end, state::_err,      state::_err,   state::_err, state::_err },
+/* _arr_next */  { state::_arr_value, state::_arr_end, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_value, state::_arr_end, state::_err,      state::_err,   state::_err, state::_err },
 /* _val */       { state::_err,       state::_err,     state::_err,       state::_err,		 state::_err,       state::_err,       state::_err,       state::_err,     state::_err,      state::_err,   state::_end, state::_err },
 /* _end */		 { state::_end,       state::_end,     state::_end,       state::_end,       state::_end,       state::_end,       state::_end,       state::_end,     state::_end,      state::_end,   state::_end, state::_end },
 /* _obj_end */   { state::_err,       state::_obj_end, state::_err,       state::_err,       state::_err,       state::_err,       state::_err,       state::_arr_end, state::_comma,    state::_err,   state::_err, state::_err },

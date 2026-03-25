@@ -7,6 +7,11 @@
 
 namespace json {
 
+	enum class encoding {
+		ascii,
+		utf8,
+	};
+
 	namespace encodings {
 
 		// интерфейс декодера
@@ -35,6 +40,9 @@ namespace json {
 
 			// возвращает флаг конца 
 			virtual bool eof() = 0;
+
+			// возвращает тип кодировки
+			virtual encoding type() = 0;
 		};
 
 		// базовый декодер 
@@ -49,12 +57,14 @@ namespace json {
 			void clear_peek_buff();
 			void push_buff(char32_t c);
 			bool eof();
+			encoding type();
 		protected:
 			char32_t _cur_char; // текущий сивол
 			std::vector<char32_t> _buff; // буфер для символов 
 			size_t _position; // позиция
 			bool _eof = false; // конец
 			io_base::i_input_ptr_ref _input; // источник получения данных
+			encoding _type;
 		};
 
 		// декодер utf8
@@ -84,6 +94,7 @@ namespace json {
 			virtual void encode_string(const std::string & string) = 0;
 			virtual void encode_code(char32_t code) = 0;
 			virtual void add_bom() = 0;
+			virtual io_base::i_output_ptr_ref output() = 0;
 		};
 
 		// знкодер utf8
@@ -93,6 +104,7 @@ namespace json {
 			void encode_code(char32_t code);
 			void encode_string(const std::string & string);
 			void add_bom();
+			io_base::i_output_ptr_ref output();
 		private:
 			io_base::i_output_ptr_ref _output; // куда записываем данные
 		};
@@ -104,6 +116,7 @@ namespace json {
 			void encode_code(char32_t code);
 			void encode_string(const std::string & string);
 			void add_bom() {};
+			io_base::i_output_ptr_ref output();
 		private:
 			io_base::i_output_ptr_ref _output; // куда записываем данные
 		};
@@ -114,6 +127,13 @@ namespace json {
 		using i_encoder_ptr_ref = std::unique_ptr<i_encoder> &;
 
 	} // encodings
+
+	// возвращает декодер в зависимости от типа кодировки
+	encodings::i_decoder_ptr make_decoder(encoding enc, io_base::i_input_ptr_ref input);
+
+	// возвращает энкодер в зависимости от типа кодировки
+	encodings::i_encoder_ptr make_encoder(encoding enc, io_base::i_output_ptr_ref output);
+
 
 } // json
 
