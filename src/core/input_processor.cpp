@@ -14,7 +14,7 @@ input_error::input_error(error_code code, size_t & line, size_t & col) :
 
 std::string input_error::form_message(error_code code){
 	switch (code){
-	case input_error::error_code::_error_token:
+	case input_error::error_code::_invalid_token:
 		return "error token";
 	case input_error::error_code::_invalid_string:
 		return "invalid string";
@@ -214,28 +214,28 @@ std::string base_input_processor::parse_unicode(i_decoder_ptr_ref _decoder){
 	if (code <= 0x7F) {
 		result += static_cast<char>(code);
 	}
-	else if (code <= 0x7F) {
-		result += static_cast<char>(0xC0 | (code >> 6) & 0x1F);
-		result += static_cast<char>(0x80 | code & 0x3F);
+	else if (code <= 0x7FF) {
+		result += static_cast<uint8_t>(0xC0 | (code >> 6) & 0x1F);
+		result += static_cast<uint8_t>(0x80 | code & 0x3F);
 	}
 	else if (code <= 0xFFFF) {
-		result += static_cast<char>(0xE0 | (code >> 12) & 0x0F);
-		result += static_cast<char>(0x80 | (code >> 6) & 0x3F);
-		result += static_cast<char>(0x80 | code & 0x3F);
+		result += static_cast<uint8_t>(0xE0 | (code >> 12) & 0x0F);
+		result += static_cast<uint8_t>(0x80 | (code >> 6) & 0x3F);
+		result += static_cast<uint8_t>(0x80 | code & 0x3F);
 	}
 	else if (code <= 0x10FFFF) {
-		result += static_cast<char>(0xF0 | (code >> 18) & 0x07);
-		result += static_cast<char>(0x80 | (code >> 12) & 0x3F);
-		result += static_cast<char>(0x80 | (code >> 6) & 0x3F);
-		result += static_cast<char>(0x80 | code & 0x3F);
+		result += static_cast<uint8_t>(0xF0 | (code >> 18) & 0x07);
+		result += static_cast<uint8_t>(0x80 | (code >> 12) & 0x3F);
+		result += static_cast<uint8_t>(0x80 | (code >> 6) & 0x3F);
+		result += static_cast<uint8_t>(0x80 | code & 0x3F);
 	}
 	return result;
 }
 
 uint32_t base_input_processor::parse_unicode_pair(i_decoder_ptr_ref _decoder){
-	uint32_t result_code;
+	uint32_t result_code = 0;
 	for (size_t i = 0; i < 4; ++i) {
-		char c = _decoder->next_char();
+		uint8_t c = _decoder->next_char();
 		_col++;
 		if (c == std::char_traits<char>::eof()) {
 			throw input_error(input_error::error_code::_invalid_unicode_char, _line, _col);
@@ -265,7 +265,7 @@ token base_input_processor::parse_number(i_decoder_ptr_ref _decoder){
 }
 
 token base_input_processor::parse_literal(i_decoder_ptr_ref _decoder, const char * literal_str, token_type type){
-	char cur_char = _decoder->current_char();
+	int cur_char = _decoder->current_char();
 	while (*literal_str != '\0') {
 		if (cur_char != *literal_str) {
 			throw input_error(input_error::error_code::_literal_error, _line, _col);
@@ -273,6 +273,11 @@ token base_input_processor::parse_literal(i_decoder_ptr_ref _decoder, const char
 		cur_char = _decoder->next_char();
 		*literal_str++;
 	}
+	if (cur_char != std::char_traits<char>::eof() && cur_char != '\t' && cur_char != ' ' &&
+		cur_char != ']' && cur_char != '}' && cur_char != '\n' && cur_char != '\r' && cur_char != ',') {
+		throw input_error(input_error::error_code::_literal_error, _line, _col);
+	}
+	_decoder->push_buff(_decoder->current_char());
 	return token(type);
 }
 
@@ -283,7 +288,7 @@ json_input_processor::json_input_processor(const json_input_processor & jip) : b
 token json_input_processor::next_token(i_decoder_ptr_ref _decoder){
 	_decoder->next_char();
 	_scs_fsm.proc(_decoder, _line, _col);
-	char c = _decoder->next_char();
+	char c = _decoder->current_char();
 	_col++;
 	switch (c){
 	case std::char_traits<char>::eof(): return token(token_type::_end);
@@ -304,7 +309,7 @@ token json_input_processor::next_token(i_decoder_ptr_ref _decoder){
 		return parse_literal(_decoder, "false", token_type::_false);
 	case 'n':
 		return parse_literal(_decoder, "null", token_type::_null);
-	default: throw input_error(input_error::error_code::_error_token, _line, _col);
+	default: throw input_error(input_error::error_code::_invalid_token, _line, _col);
 	}
 }
 
@@ -339,7 +344,7 @@ token json5_input_processor::next_token(i_decoder_ptr_ref _decoder){
 	case '4': case '5': case '6': 
 	case '7': case '8': case '9': 
 		return parse_number(_decoder);
-	default: throw input_error(input_error::error_code::_error_token, _line, _col);
+	default: throw input_error(input_error::error_code::_invalid_token, _line, _col);
 	};
 }
 
@@ -582,6 +587,9 @@ size_t digit_parse_fsm::char_type(char c){
 	case ']':
 	case '}':
 	case ' ':
+	case '\r':
+	case '\n':
+	case '\0':
 	case '\t':
 	case ',':
 	case std::char_traits<char>::eof():
@@ -644,7 +652,10 @@ size_t hex_parse_fsm::char_type(char c){
 	case '}':
 	case ' ':
 	case '\t':
+	case '\r':
+	case '\n':
 	case ',':
+	case '\0':
 	case std::char_traits<char>::eof():
 		return 3;
 	}

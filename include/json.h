@@ -1,11 +1,11 @@
 #ifndef _DRONJSON_
 #define _DRONJSON_
 
-#include "error.h"
-#include "json_value.h"
-#include "parser.h"
-#include "io_base.h"
-#include "writer.h"
+#include "core\error.h"
+#include "core\json_value.h"
+#include "core\parser.h"
+#include "core\io_base.h"
+#include "core\writer.h"
 
 namespace json {
 

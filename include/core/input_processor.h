@@ -131,7 +131,7 @@ namespace json {
 
 			// коды ошибок
 			enum class error_code {
-				_error_token = 0,
+				_invalid_token = 0,
 				_invalid_string,
 				_invalid_number,
 				_invalis_hex_number,

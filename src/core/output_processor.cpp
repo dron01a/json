@@ -52,6 +52,10 @@ void json::io::i_output_processor::set_space_size(size_t count) {
 	_space_size = count;
 }
 
+encodings::i_encoder_ptr_ref json::io::i_output_processor::encoder(){
+	return _encoder;
+}
+
 void i_output_processor::escape_string(const char * data){
 	_encoder->encode_code('\"');
 	_encoder->encode_string(data);
@@ -222,6 +226,12 @@ json::io::xml_output_processor::xml_output_processor(encodings::i_encoder_ptr_re
 	_indent_level--;
 }
 
+json::io::xml_output_processor::xml_output_processor(encodings::i_encoder_ptr_ref dest, std::string & root_name, bool format) 
+	: i_output_processor(dest, format), _in_array_flag(false), _arr_level(0) {
+	write_key(root_name.c_str());
+	_indent_level--;
+}
+
 void json::io::xml_output_processor::write_bom() {
 	_encoder->add_bom();
 }
@@ -328,7 +338,6 @@ void json::io::xml_output_processor::write_key(const char * key) {
 	write_indent();
 	_tag_names.push(key);
 	_encoder->encode_string("<" + _tag_names.top() + ">");
-	_encoder->encode_string("[" + std::to_string(_indent_level) + "]");
 	_indent_level++;
 }
 
@@ -336,8 +345,8 @@ void json::io::xml_output_processor::before_value() {
 	if (_in_array_flag) {
 		write_key("array_item");
 	}
-		write_space();
-		write_indent();
+	write_space();
+	write_indent();
 }
 
 void json::io::xml_output_processor::write_close_tag() {
@@ -347,6 +356,5 @@ void json::io::xml_output_processor::write_close_tag() {
 		_encoder->encode_code('\\');
 		_encoder->encode_string(_tag_names.top() + ">");
 		_tag_names.pop();
-		_encoder->encode_string("[" + std::to_string(_indent_level) + "]");
 	}
 }

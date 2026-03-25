@@ -78,6 +78,9 @@ namespace json {
 			// устанавливает колличество сиволов пробела
 			void set_space_size(size_t count);
 
+			// возвращает текущий encoder
+			encodings::i_encoder_ptr_ref encoder();
+
 		protected:
 
 			// экранирование строк
@@ -133,6 +136,7 @@ namespace json {
 		public:
 			// конструктор 
 			explicit xml_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
+			explicit xml_output_processor(encodings::i_encoder_ptr_ref dest, std::string & root_name, bool format = false);
 			void write_bom() override;
 			void write_null() override;
 			void write_int(int data) override;

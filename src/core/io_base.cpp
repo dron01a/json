@@ -91,13 +91,13 @@ int string_input::last_char() {
 }
 
 void string_input::seek(int n) {
-	if (position +  n <  str.size() - 1) {
+	if (position +  n <  str.size() - 1 && position + n >= 0) {
 		position += n;
 	}
 }
 
 bool string_input::ready() {
-	return !str.empty() && position < str.size();
+	return !str.empty() && position < str.size() && position >= 0;
 }
 
 bool string_input::eof(){
