@@ -7,7 +7,7 @@
 #include "../tools/mock_tools.h"
 
 using namespace json;
-using namespace json::io;
+using namespace json::core::io;
 
 TEST_CASE(base_input_processor_parse_string) {
 	class test_proc : public base_input_processor {
@@ -143,25 +143,25 @@ TEST_CASE(base_input_processor_parse_literal) {
 	{
 		auto _decoder = make_decoder("true");
 		_decoder->next_char();
-		token _result = _tp.parse_literal(_decoder, "true", json::io::token_type::_true);
-		ASSERT_TOKEN_BOOL(_result, json::io::token_type::_true);
+		token _result = _tp.parse_literal(_decoder, "true", json::core::io::token_type::_true);
+		ASSERT_TOKEN_BOOL(_result, json::core::io::token_type::_true);
 	}
 	{
 		auto _decoder = make_decoder("false");
 		_decoder->next_char();
-		token _result = _tp.parse_literal(_decoder, "false", json::io::token_type::_false);
-		ASSERT_TOKEN_BOOL(_result, json::io::token_type::_false);
+		token _result = _tp.parse_literal(_decoder, "false", json::core::io::token_type::_false);
+		ASSERT_TOKEN_BOOL(_result, json::core::io::token_type::_false);
 	}
 	{
 		auto _decoder = make_decoder("null");
 		_decoder->next_char();
-		token _result = _tp.parse_literal(_decoder, "null", json::io::token_type::_null);
-		TEST_ASSERT(_result.type() == json::io::token_type::_null);
+		token _result = _tp.parse_literal(_decoder, "null", json::core::io::token_type::_null);
+		TEST_ASSERT(_result.type() == json::core::io::token_type::_null);
 	}
 	{
 		auto _decoder = make_decoder("falseds");
 		_decoder->next_char();
-		TEST_ASSERT_THROW(_tp.parse_literal(_decoder, "false", json::io::token_type::_false), input_error);
+		TEST_ASSERT_THROW(_tp.parse_literal(_decoder, "false", json::core::io::token_type::_false), input_error);
 	}
 }
 

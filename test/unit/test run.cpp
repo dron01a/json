@@ -5,7 +5,7 @@
 #include "../tools/tests_framework.h"
 
 using namespace json;
-using namespace json::impl;
+using namespace json::core::impl;
 
 #define _ALL_TESTS_RUN
 

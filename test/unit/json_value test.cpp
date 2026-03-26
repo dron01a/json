@@ -5,7 +5,7 @@
 #include "../tools/tests_framework.h"
 
 using namespace json;
-using namespace json::impl;
+using namespace json::core::impl;
 
 TEST_CASE(value_type_constructor) {
 	json_value val1(value_type::_int);

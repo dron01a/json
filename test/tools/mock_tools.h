@@ -7,7 +7,7 @@
 
 using char32_vect = std::vector<char32_t>;
 
-class mock_decoder : public json::encodings::i_decoder  {
+class mock_decoder : public json::core::io::encodings::i_decoder  {
 public:
 
 	// конструктор 
@@ -89,7 +89,7 @@ char32_vect string_to_char32(const std::string & data) {
 	return _result;
 }
 
-json::encodings::i_decoder_ptr make_decoder(const std::string & data) {
+json::core::io::encodings::i_decoder_ptr make_decoder(const std::string & data) {
 	return std::make_unique<mock_decoder>(string_to_char32(data));
 }
 
