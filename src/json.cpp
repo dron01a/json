@@ -1,10 +1,10 @@
 #include "json.h"
 
 using namespace json;
-using namespace json::io;
-using namespace json::io_base;
-using namespace json::encodings;
-using namespace json::impl; 
+using namespace json::core::io;
+using namespace json::core::io::io_base;
+using namespace json::core::io::encodings;
+using namespace json::core::impl; 
 
 parse_result dom_parser::from_file(const char * file_name, parse_config config){
 	parse_result res;
@@ -115,7 +115,7 @@ std::string json::xml_convert::to_string(const json_value & val, write_config co
 }
 
 void json::xml_convert::convert(i_output_ptr_ref out, const json_value & val, write_config config) {
-	config.sinax() = write_config::sinax_mode::XML;
+	config.sinax() = output_format::XML;
 	out->out_data("<?xml version=\"1.0\" encoding=");
 	switch (config.encoding()) {
 	case encoding::ascii:

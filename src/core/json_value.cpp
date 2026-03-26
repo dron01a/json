@@ -1,9 +1,9 @@
 #include "core\json_value.h"
 
 using namespace json;
-using namespace json::impl;
+using namespace json::core::impl;
 
-value_error::value_error(error_code code) : base_error(error_category::value_error, 0, 0, form_message(code)) {}
+value_error::value_error(error_code code) : error(error_category::value_error, 0, 0, form_message(code)) {}
 
 std::string value_error::form_message(error_code code) {
 	switch (code) {
@@ -200,18 +200,18 @@ void json_storage::move_data(json_storage && other) {
 	other._type = value_type::_null;
 }
 
-bool json::impl::check_num_types(const value_type & a, const value_type & b) {
+bool json::core::impl::check_num_types(const value_type & a, const value_type & b) {
 	return (a == value_type::_int || a == value_type::_double || a == value_type::_uint) 
 		&& (b == value_type::_int || b == value_type::_double || b == value_type::_uint);
 }
 
-bool json::impl::compare_num_types(const json_storage & a, const json_storage & b){
+bool json::core::impl::compare_num_types(const json_storage & a, const json_storage & b){
 	double var_a = cast_to_double(a);
 	double var_b = cast_to_double(b);
 	return var_a == var_b;
 }
 
-double json::impl::cast_to_double(const json_storage & data) {
+double json::core::impl::cast_to_double(const json_storage & data) {
 	switch (data.type()) {
 	case json::value_type::_int:
 		return *data.get<int>();

@@ -1,5 +1,5 @@
-#ifndef __DRONJSON__ERROR__
-#define __DRONJSON__ERROR__
+#ifndef _DRONJSON_ERROR_
+#define _DRONJSON_ERROR_
 
 #include <string>
 
@@ -16,9 +16,9 @@ namespace json {
 	};
 
 	// базовая структура ошибки
-	class base_error : public std::exception {
+	class error : public std::exception {
 	public: 
-		base_error(error_category category, size_t line, size_t col, const std::string & message);
+		error(error_category category, size_t line, size_t col, const std::string & message);
 
 		// возращает линию ошибки 
 		size_t line() const;
@@ -47,4 +47,4 @@ namespace json {
 }
 
 
-#endif
+#endif // !_DRONJSON_BASE_IO_

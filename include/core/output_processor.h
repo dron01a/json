@@ -8,168 +8,168 @@
 #include <stack>
 
 namespace json {
+	namespace core {
+		namespace io {
 
-	namespace io {
+			// интерфейс класса вывода инфомации
+			class i_output_processor {
+			public:
 
-		// интерфейс класса вывода инфомации
-		class i_output_processor {
-		public:
+				// конструктор 
+				i_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
 
-			// конструктор 
-			i_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
+				// деструктор  
+				virtual ~i_output_processor() = default;
 
-			// деструктор  
-			virtual ~i_output_processor() = default;
+				// запись bom
+				virtual void write_bom() = 0;
 
-			// запись bom
-			virtual void write_bom() = 0;
-			
-			// запись null
-			virtual void write_null() = 0;
+				// запись null
+				virtual void write_null() = 0;
 
-			// запись чисел типа int
-			virtual void write_int(int data) = 0;
-			
-			// запись чисел типа unsigned int 
-			virtual void write_uint(unsigned int data) = 0;
-			
-			// запись чисел типа double
-			virtual void write_double(double data) = 0;
+				// запись чисел типа int
+				virtual void write_int(int data) = 0;
 
-			// запись bool 
-			virtual void write_bool(bool data) = 0;
+				// запись чисел типа unsigned int 
+				virtual void write_uint(unsigned int data) = 0;
 
-			// запись строки 
-			virtual void write_string(const char * data) = 0;
+				// запись чисел типа double
+				virtual void write_double(double data) = 0;
 
-			// начало массива
-			virtual void begin_array() = 0;
+				// запись bool 
+				virtual void write_bool(bool data) = 0;
 
-			// конец массива 
-			virtual void end_array() = 0;
+				// запись строки 
+				virtual void write_string(const char * data) = 0;
 
-			// начало объекта
-			virtual void begin_object() = 0;
+				// начало массива
+				virtual void begin_array() = 0;
 
-			// конец объекта
-			virtual void end_object() = 0;
+				// конец массива 
+				virtual void end_array() = 0;
 
-			// запись ключа
-			virtual void write_key(const char * key) = 0;
+				// начало объекта
+				virtual void begin_object() = 0;
 
-			// пустой символ 
-			void write_indent();
+				// конец объекта
+				virtual void end_object() = 0;
 
-			// пробел
-			void write_space();
+				// запись ключа
+				virtual void write_key(const char * key) = 0;
 
-			// переход на новую линию
-			void write_new_line();
-			
-			// устанавливает сивол отступа
-			void set_indent(char _char);
+				// пустой символ 
+				void write_indent();
 
-			// устанавливает символ пробела
-			void set_space(char _char);
+				// пробел
+				void write_space();
 
-			// устанавливает колличество сиволов отступа
-			void set_indent_size(size_t count);
+				// переход на новую линию
+				void write_new_line();
 
-			// устанавливает колличество сиволов пробела
-			void set_space_size(size_t count);
+				// устанавливает сивол отступа
+				void set_indent(char _char);
 
-			// возвращает текущий encoder
-			encodings::i_encoder_ptr_ref encoder();
+				// устанавливает символ пробела
+				void set_space(char _char);
 
-		protected:
+				// устанавливает колличество сиволов отступа
+				void set_indent_size(size_t count);
 
-			// экранирование строк
-			void escape_string(const char * data);
+				// устанавливает колличество сиволов пробела
+				void set_space_size(size_t count);
 
-			char _indent_char; // символ принятый в качестве отступа при форматировнии
-			char _space_char; // символ принятый в качестве пробела
-			size_t _indent_size; // колличество символов отступа
-			size_t _space_size; // колличество символов пробела
-			size_t _indent_level; // уровень вложенности элемента
-			bool _format; // флаг форматирования вывода
-			bool _need_comma; // нужна или не нужна запятая 
-			bool _after_key;
-			encodings::i_encoder_ptr_ref _encoder; // энкодер
-		};
+				// возвращает текущий encoder
+				encodings::i_encoder_ptr_ref encoder();
 
-		// стандартный вывод json
-		class json_output_processor : public i_output_processor {
-		public:
-			// конструктор 
-			explicit json_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
-			void write_bom() override;
-			void write_null() override;
-			void write_int(int data) override;
-			void write_uint(unsigned int data) override;
-			void write_double(double data) override;
-			void write_bool(bool data) override;
-			void write_string(const char * data) override;
-			void begin_array() override; 
-			void end_array() override;
-			void begin_object() override;
-			void end_object() override;
-			void write_key(const char * key) override;
-		
-		private:
+			protected:
 
-			// проверка перед вставкой элемента 
-			void before_value();
+				// экранирование строк
+				void escape_string(const char * data);
 
-			// проверка после вставки элемента 
-			void end_value();
+				char _indent_char; // символ принятый в качестве отступа при форматировнии
+				char _space_char; // символ принятый в качестве пробела
+				size_t _indent_size; // колличество символов отступа
+				size_t _space_size; // колличество символов пробела
+				size_t _indent_level; // уровень вложенности элемента
+				bool _format; // флаг форматирования вывода
+				bool _need_comma; // нужна или не нужна запятая 
+				bool _after_key;
+				encodings::i_encoder_ptr_ref _encoder; // энкодер
+			};
 
-			// пишет запятую
-			void write_comma();
-			
-			// пишет двоеточие
-			void write_colon();
+			// стандартный вывод json
+			class json_output_processor : public i_output_processor {
+			public:
+				// конструктор 
+				explicit json_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
+				void write_bom() override;
+				void write_null() override;
+				void write_int(int data) override;
+				void write_uint(unsigned int data) override;
+				void write_double(double data) override;
+				void write_bool(bool data) override;
+				void write_string(const char * data) override;
+				void begin_array() override;
+				void end_array() override;
+				void begin_object() override;
+				void end_object() override;
+				void write_key(const char * key) override;
 
-		};
+			private:
 
-		// выодит json как xml
-		class xml_output_processor : public i_output_processor {
-		public:
-			// конструктор 
-			explicit xml_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
-			explicit xml_output_processor(encodings::i_encoder_ptr_ref dest, std::string & root_name, bool format = false);
-			void write_bom() override;
-			void write_null() override;
-			void write_int(int data) override;
-			void write_uint(unsigned int data) override;
-			void write_double(double data) override;
-			void write_bool(bool data) override;
-			void write_string(const char * data) override;
-			void begin_array() override;
-			void end_array() override;
-			void begin_object() override;
-			void end_object() override;
-			void write_key(const char * key) override;
+				// проверка перед вставкой элемента 
+				void before_value();
 
-		private :
-			
-			// передварительная подготовка перед записью значения 
-			void before_value();
+				// проверка после вставки элемента 
+				void end_value();
 
-			// записывает закрывающий тег
-			void write_close_tag();
+				// пишет запятую
+				void write_comma();
 
-			std::stack<std::string> _tag_names; // имена тегов для записи закрвающих тегов
-			bool _in_array_flag; // флаг для навигации (true, если находимся в массиве)
-			size_t _arr_level; // для записи вложенных массивов  
-			size_t _obj_level; // для записи вложенности объектов
-			
-		};
+				// пишет двоеточие
+				void write_colon();
 
-		using i_output_processor_ptr = std::unique_ptr<i_output_processor>;
-		using i_output_processor_ptr_ref = std::unique_ptr<i_output_processor>&;
+			};
 
-	}; // io
+			// выодит json как xml
+			class xml_output_processor : public i_output_processor {
+			public:
+				// конструктор 
+				explicit xml_output_processor(encodings::i_encoder_ptr_ref dest, bool format = false);
+				explicit xml_output_processor(encodings::i_encoder_ptr_ref dest, std::string & root_name, bool format = false);
+				void write_bom() override;
+				void write_null() override;
+				void write_int(int data) override;
+				void write_uint(unsigned int data) override;
+				void write_double(double data) override;
+				void write_bool(bool data) override;
+				void write_string(const char * data) override;
+				void begin_array() override;
+				void end_array() override;
+				void begin_object() override;
+				void end_object() override;
+				void write_key(const char * key) override;
 
+			private:
+
+				// передварительная подготовка перед записью значения 
+				void before_value();
+
+				// записывает закрывающий тег
+				void write_close_tag();
+
+				std::stack<std::string> _tag_names; // имена тегов для записи закрвающих тегов
+				bool _in_array_flag; // флаг для навигации (true, если находимся в массиве)
+				size_t _arr_level; // для записи вложенных массивов  
+				size_t _obj_level; // для записи вложенности объектов
+
+			};
+
+			using i_output_processor_ptr = std::unique_ptr<i_output_processor>;
+			using i_output_processor_ptr_ref = std::unique_ptr<i_output_processor>&;
+
+		}; // io
+	}
 }; // json
 
 #endif // !_DRONJSON_OUTPUT_PROCESSOR_

@@ -3,13 +3,13 @@
 #include <cctype>
 
 using namespace json; 
-using namespace json::io;
-using namespace json::io::fsm;
-using namespace json::io_base;
-using namespace json::encodings;
+using namespace json::core::io;
+using namespace json::core::io::fsm;
+using namespace json::core::io::io_base;
+using namespace json::core::io::encodings;
 
 input_error::input_error(error_code code, size_t & line, size_t & col) : 
-	base_error(error_category::input_error, line, col, form_message(code))
+	error(error_category::input_error, line, col, form_message(code))
 {}
 
 std::string input_error::form_message(error_code code){
@@ -545,15 +545,15 @@ std::pair<double, bool> digit_parse_fsm::run(encodings::i_decoder_ptr_ref decode
 	_state = table[(size_t)_state][char_type(decoder->current_char())];
 	while (_state != state::_end) {
 		switch (_state) {
-		case json::io::fsm::digit_parse_fsm::state::_sing:
-		case json::io::fsm::digit_parse_fsm::state::_digit:
-		case json::io::fsm::digit_parse_fsm::state::_dot:
-		case json::io::fsm::digit_parse_fsm::state::_fract:
-		case json::io::fsm::digit_parse_fsm::state::_exp_s:
-		case json::io::fsm::digit_parse_fsm::state::_exp:
+		case digit_parse_fsm::state::_sing:
+		case digit_parse_fsm::state::_digit:
+		case digit_parse_fsm::state::_dot:
+		case digit_parse_fsm::state::_fract:
+		case digit_parse_fsm::state::_exp_s:
+		case digit_parse_fsm::state::_exp:
 			_digit_string += decoder->current_char();
 			break;
-		case json::io::fsm::digit_parse_fsm::state::_error:
+		case digit_parse_fsm::state::_error:
 			valid = false;
 			break;
 		}
@@ -606,11 +606,11 @@ std::pair<double, bool> hex_parse_fsm::run(encodings::i_decoder_ptr_ref decoder,
 	_state = table[(size_t)_state][char_type(decoder->current_char())];
 	while (_state != state::_end) {
 		switch (_state) {
-		case json::io::fsm::hex_parse_fsm::state::_prefix:
-		case json::io::fsm::hex_parse_fsm::state::_digit:
+		case hex_parse_fsm::state::_prefix:
+		case hex_parse_fsm::state::_digit:
 			_digit_string += decoder->current_char();
 			break;
-		case json::io::fsm::hex_parse_fsm::state::_error:
+		case hex_parse_fsm::state::_error:
 			valid = false;
 			break;
 		}

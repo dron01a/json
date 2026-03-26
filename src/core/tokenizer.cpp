@@ -1,12 +1,12 @@
 #include "core\tokenizer.h"
 
 using namespace json;
-using namespace json::io;
-using namespace json::encodings;
+using namespace json::core::io;
+using namespace json::core::io::encodings;
 
 tokenizer::tokenizer(i_input_processor_ptr_ref input_proc,
 							   i_decoder_ptr_ref decoder,
-							   std::vector<std::unique_ptr<base_error>> & errors)
+							   std::vector<std::unique_ptr<error>> & errors)
 :_input_proc(input_proc), _decoder(decoder), _errors(errors) {}
 
 tokenizer::tokenizer(const tokenizer & tok) 
@@ -19,8 +19,8 @@ token & tokenizer::next(){
 			cur_token = _input_proc->next_token(_decoder);
 			_success = true;
 		}
-		catch (base_error & err) {
-			_errors.push_back(std::make_unique<json::base_error>(err));
+		catch (error & err) {
+			_errors.push_back(std::make_unique<json::error>(err));
 		}
 	}
 	return cur_token;

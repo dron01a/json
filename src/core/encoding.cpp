@@ -1,8 +1,8 @@
 #include "core\encoding.h"
 
 using namespace json;
-using namespace json::io_base;
-using namespace json::encodings;
+using namespace json::core::io::io_base;
+using namespace json::core::io::encodings;
 
 base_decoder::base_decoder(i_input_ptr_ref input) : _input(input) {
 	_position = 0;
@@ -43,11 +43,11 @@ bool base_decoder::eof() {
 	return _eof || _input->eof();
 }
 
-encoding json::encodings::base_decoder::type() {
+encoding base_decoder::type() {
 	return _type;
 }
 
-utf8_decoder::utf8_decoder(io_base::i_input_ptr_ref input) : base_decoder(input) {
+utf8_decoder::utf8_decoder(i_input_ptr_ref input) : base_decoder(input) {
 	_type = encoding::utf8;
 	_bom = skip_bom();
 }
@@ -176,7 +176,7 @@ void ascii_decoder::position(size_t pos){
 
 utf8_encoder::utf8_encoder(i_output_ptr_ref dest) : _output(dest) {}
 
-void json::encodings::utf8_encoder::encode_code(char32_t code) {
+void utf8_encoder::encode_code(char32_t code) {
 	if (code > 0x10FFFF | (code >= 0xD800 && code <= 0xDFFF)) {
 		code = 0xFFFD;
 	}
@@ -200,7 +200,7 @@ void json::encodings::utf8_encoder::encode_code(char32_t code) {
 	}
 }
 
-void json::encodings::utf8_encoder::encode_string(const std::string & string) {
+void utf8_encoder::encode_string(const std::string & string) {
 	uint8_t first;
 	char32_t code;
 	for (size_t i = 0; i < string.size(); ++i) {
@@ -256,19 +256,19 @@ void json::encodings::utf8_encoder::encode_string(const std::string & string) {
 	}
 }
 
-void json::encodings::utf8_encoder::add_bom() {
+void utf8_encoder::add_bom() {
 	_output->out_data('\xEF');
 	_output->out_data('\xBB');
 	_output->out_data('\xBF');
 }
 
-io_base::i_output_ptr_ref json::encodings::utf8_encoder::output() {
+i_output_ptr_ref utf8_encoder::output() {
 	return _output;
 }
 
-json::encodings::ascii_encoder::ascii_encoder(io_base::i_output_ptr_ref dest) : _output(dest) {}
+ascii_encoder::ascii_encoder(i_output_ptr_ref dest) : _output(dest) {}
 
-void json::encodings::ascii_encoder::encode_code(char32_t code) {
+void ascii_encoder::encode_code(char32_t code) {
 	if (code <= 127) {
 		if (code >= 32 || code == '\t' || code == '\r' || code == '\n') {
 			_output->out_data(static_cast<char>(code));
@@ -278,7 +278,7 @@ void json::encodings::ascii_encoder::encode_code(char32_t code) {
 	_output->out_data('?'); // добавить таблицу заменяемых символов ???
 }
 
-void json::encodings::ascii_encoder::encode_string(const std::string & string) {
+void ascii_encoder::encode_string(const std::string & string) {
 	for (size_t i = 0; i < string.size(); ++i) {
 		switch (string[i]) {
 		case '\"':
@@ -312,25 +312,7 @@ void json::encodings::ascii_encoder::encode_string(const std::string & string) {
 	}
 }
 
-io_base::i_output_ptr_ref json::encodings::ascii_encoder::output() {
+i_output_ptr_ref ascii_encoder::output() {
 	return _output;
 }
 
-encodings::i_decoder_ptr json::make_decoder(encoding enc, io_base::i_input_ptr_ref input) {
-	switch (enc){
-	case json::encoding::ascii:
-		return std::make_unique<ascii_decoder>(input);
-	case json::encoding::utf8:
-		return std::make_unique<utf8_decoder>(input);
-	}
-
-}
-
-encodings::i_encoder_ptr json::make_encoder(encoding enc, io_base::i_output_ptr_ref output) {
-	switch (enc) {
-	case json::encoding::ascii:
-		return std::make_unique<ascii_encoder>(output);
-	case json::encoding::utf8:
-		return std::make_unique<utf8_encoder>(output);
-	};
-}

@@ -1,19 +1,20 @@
 #include "core\writer.h"
 
 using namespace json;
-using namespace json::io;
-using namespace json::io_base;
-using namespace json::impl;
-using namespace json::encodings;
+using namespace json::core;
+using namespace json::core::io;
+using namespace json::core::io::encodings;
+using namespace json::core::io::io_base;
+using namespace json::core::impl;
 
-write_config::write_config(json::encoding enc, sinax_mode sm, error_mode em) :
+write_config::write_config(json::encoding enc, output_format sm, error_mode em) :
 	_encoding(enc), _sinax_mode(sm), _error_mode(em), _flags(0) {}
 
 encoding & json::write_config::encoding(){
 	return _encoding;
 }
 
-write_config::sinax_mode & write_config::sinax() {
+output_format & write_config::sinax() {
 	return _sinax_mode;
 }
 
@@ -51,14 +52,7 @@ size_t & json::write_config::space_size(){
 
 writer_impl::writer_impl(i_output_ptr_ref output, write_config conf) : _output(output) {
 	_encoder = make_encoder(conf.encoding(), _output);
-	switch (conf.sinax()) {
-	case write_config::sinax_mode::JSON:
-		_output_proc = std::make_unique<json_output_processor>(_encoder, conf.chesk_flag(write_flags::format));
-		break;
-	case write_config::sinax_mode::XML:
-		_output_proc = std::make_unique<xml_output_processor>(_encoder, conf.chesk_flag(write_flags::format));
-		break;
-	}
+	_output_proc = make_output_processor(conf.sinax(), _encoder, conf.chesk_flag(write_flags::format));
 	_output_proc->set_indent(conf.indent());
 	_output_proc->set_space(conf.chesk_flag(write_flags::using_tabs) ? '\t' : conf.space());
 	_output_proc->set_indent_size(conf.indent_size());

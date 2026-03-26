@@ -1,43 +1,45 @@
-#ifndef _DRON_JSON_TOKENIZER_
-#define _DRON_JSON_TOKENIZER_
+#ifndef _DRONJSON_TOKENIZER_
+#define _DRONJSON_TOKENIZER_
 
 #include "error.h"
 #include "input_processor.h"
 
 namespace json {
 
-	namespace io {
+	namespace core {
 
-		// клас токенайзера
-		class tokenizer {
-		public:
-			// конструктор класса 
-			tokenizer(i_input_processor_ptr_ref input_proc,
-					  encodings::i_decoder_ptr_ref decoder, 
-				      std::vector<std::unique_ptr<base_error>> & errors);
+		namespace io {
 
-		    tokenizer(const tokenizer & tok);
+			// клас токенайзера
+			class tokenizer {
+			public:
+				// конструктор класса 
+				tokenizer(i_input_processor_ptr_ref input_proc,
+					encodings::i_decoder_ptr_ref decoder,
+					std::vector<std::unique_ptr<error>> & errors);
 
-			// деструктор класса 
-			~tokenizer() {};
-			
-			// следующий токен 
-			token & next();
+				tokenizer(const tokenizer & tok);
 
-			// последний полученный токен
-			token & last();
+				// деструктор класса 
+				~tokenizer() {};
 
-		private:
-			i_input_processor_ptr_ref _input_proc; // ссылка на обработчик ввода
-			encodings::i_decoder_ptr_ref _decoder; // ссылка на декодер 
-			std::vector<std::unique_ptr<base_error>> & _errors; // ссылка на вектор с ошибками 
+				// следующий токен 
+				token & next();
 
-			token cur_token; // последний полученный токен
+				// последний полученный токен
+				token & last();
+
+			private:
+				i_input_processor_ptr_ref _input_proc; // ссылка на обработчик ввода
+				encodings::i_decoder_ptr_ref _decoder; // ссылка на декодер 
+				std::vector<std::unique_ptr<error>> & _errors; // ссылка на вектор с ошибками 
+
+				token cur_token; // последний полученный токен
+			};
+
+			using tokenizer_ptr = std::unique_ptr<json::core::io::tokenizer>;
 		};
-
-		using tokenizer_ptr = std::unique_ptr<json::io::tokenizer>;
-	};
-
+	}
 };
 
 #endif // !_DRON_JSON_TOKENIZER_

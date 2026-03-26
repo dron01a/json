@@ -1,10 +1,11 @@
 #include "core\io_base.h"
 
 using namespace json;
-using namespace json::io_base;
+using namespace json::core::io;
+using namespace json::core::io::io_base;
 
 io_error::io_error(error_code code, size_t line, size_t col, std::string file_name)
-	: base_error(error_category::io_error, line, col, form_message(code, file_name)) {
+	: error(error_category::io_error, line, col, form_message(code, file_name)) {
 }
 
 std::string io_error::form_message(error_code code, std::string file_name) {
@@ -156,7 +157,7 @@ void file_output::out_data(char data){
 	_desc << data;
 }
 
-void json::io_base::file_output::out_data(char32_t data){
+void file_output::out_data(char32_t data){
 	_desc << data;
 }
 
@@ -176,7 +177,7 @@ void string_output::out_data(char data){
 	*_desc += data;
 }
 
-void json::io_base::string_output::out_data(char32_t data){
+void string_output::out_data(char32_t data){
 	_desc += data;
 }
 
@@ -200,7 +201,7 @@ void stream_output::out_data(char data) {
 	*_desc << data;
 }
 
-void json::io_base::stream_output::out_data(char32_t data){
+void stream_output::out_data(char32_t data){
 	*_desc << data;
 }
 

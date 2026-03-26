@@ -1,5 +1,5 @@
-#ifndef __DRONJSON__JS_VAL__
-#define __DRONJSON__JS_VAL__
+#ifndef _DRONJSON_JSON_VAL_
+#define _DRONJSON_JSON_VAL_
 
 #include <string>
 #include <vector>
@@ -33,7 +33,7 @@ namespace json {
 		_object
 	};
 
-	class value_error : base_error {
+	class value_error : error {
 	public:
 		enum class error_code {
 
@@ -62,120 +62,123 @@ namespace json {
 		std::string form_message(error_code code);
 	};
 
-	namespace impl {
+	namespace core {
 
-		// класс для управления паматью json_value
-		class json_storage {
-		public:
-			// конструктор класса
-			json_storage();
-			json_storage(const json_storage & other);
-			json_storage(json_storage && other);
+		namespace impl {
 
-			// оператор присвоения 
-			json_storage & operator=(const json_storage & other);
-			json_storage & operator=(json_storage && other);
+			// класс для управления паматью json_value
+			class json_storage {
+			public:
+				// конструктор класса
+				json_storage();
+				json_storage(const json_storage & other);
+				json_storage(json_storage && other);
 
-			// операторы сравнения 
-			bool operator==(const json_storage & other) const ;
-			bool operator!=(const json_storage & other) const ;
+				// оператор присвоения 
+				json_storage & operator=(const json_storage & other);
+				json_storage & operator=(json_storage && other);
 
-			// деструктор
-			~json_storage();
+				// операторы сравнения 
+				bool operator==(const json_storage & other) const;
+				bool operator!=(const json_storage & other) const;
 
-			// очистка памяти
-			void clear() noexcept;
+				// деструктор
+				~json_storage();
 
-			// возврат значения с необходимым типом
-			template<typename data_type> data_type * get() noexcept {
-				return reinterpret_cast<data_type*>(_storage);
-			}
+				// очистка памяти
+				void clear() noexcept;
 
-			// возврат константного значения с необходимым типом
-			template<typename data_type> const data_type * get() const noexcept {
-				return reinterpret_cast<const data_type*>(_storage);
-			}
-
-			// установка значения
-			template<typename data_type, typename... args>
-			void set(args&&... _args) {
-				if (_type != value_type::_null) {
-					clear(); // очистка памяти перед инициализацией нового типа
+				// возврат значения с необходимым типом
+				template<typename data_type> data_type * get() noexcept {
+					return reinterpret_cast<data_type*>(_storage);
 				}
-				new (_storage) data_type(std::forward<args>(_args)...);
-				if (std::is_same_v<data_type, bool>) {
-					_type = value_type::_bool;
+
+				// возврат константного значения с необходимым типом
+				template<typename data_type> const data_type * get() const noexcept {
+					return reinterpret_cast<const data_type*>(_storage);
 				}
-				else if (std::is_same_v<data_type, int>) {
-					_type = value_type::_int;
+
+				// установка значения
+				template<typename data_type, typename... args>
+				void set(args&&... _args) {
+					if (_type != value_type::_null) {
+						clear(); // очистка памяти перед инициализацией нового типа
+					}
+					new (_storage) data_type(std::forward<args>(_args)...);
+					if (std::is_same_v<data_type, bool>) {
+						_type = value_type::_bool;
+					}
+					else if (std::is_same_v<data_type, int>) {
+						_type = value_type::_int;
+					}
+					else if (std::is_same_v<data_type, unsigned int>) {
+						_type = value_type::_uint;
+					}
+					else if (std::is_same_v<data_type, double>) {
+						_type = value_type::_double;
+					}
+					else if (std::is_same_v<data_type, std::string>) {
+						_type = value_type::_string;
+					}
+					else if (std::is_same_v<data_type, json_array>) {
+						_type = value_type::_array;
+					}
+					else if (std::is_same_v<data_type, json_object>) {
+						_type = value_type::_object;
+					}
+					else {
+						_type = value_type::_null;
+					}
 				}
-				else if (std::is_same_v<data_type, unsigned int>) {
-					_type = value_type::_uint;
-				}
-				else if (std::is_same_v<data_type, double>) {
-					_type = value_type::_double;
-				}
-				else if (std::is_same_v<data_type, std::string>) {
-					_type = value_type::_string;
-				}
-				else if (std::is_same_v<data_type, json_array>) {
-					_type = value_type::_array;
-				}
-				else if (std::is_same_v<data_type, json_object>) {
-					_type = value_type::_object;
-				}
-				else {
-					_type = value_type::_null;
-				}
-			}
 
-			// установка и возврат типа
-			value_type type() const;
-			void type(value_type new_type);
+				// установка и возврат типа
+				value_type type() const;
+				void type(value_type new_type);
 
-			// возврат выравнивания 
-			size_t aligned() const noexcept;
+				// возврат выравнивания 
+				size_t aligned() const noexcept;
 
-			// возврат размера буфера
-			size_t size() const noexcept;
+				// возврат размера буфера
+				size_t size() const noexcept;
 
-		private:
+			private:
 
-			// копирование 
-			void copy_data(const json_storage & other);
+				// копирование 
+				void copy_data(const json_storage & other);
 
-			// перемещение 
-			void move_data(json_storage && other);
+				// перемещение 
+				void move_data(json_storage && other);
 
-			// вычисление размера буфера
-			static constexpr size_t buffer_size =
-				sizeof(bool) > sizeof(double) ? sizeof(bool) :
-				sizeof(double) > sizeof(std::string) ? sizeof(double) :
-				sizeof(std::string) > sizeof(json::json_array) ? sizeof(std::string) :
-				sizeof(json::json_array) > sizeof(json::json_object) ?
-				sizeof(json::json_array) : sizeof(json::json_object);
+				// вычисление размера буфера
+				static constexpr size_t buffer_size =
+					sizeof(bool) > sizeof(double) ? sizeof(bool) :
+					sizeof(double) > sizeof(std::string) ? sizeof(double) :
+					sizeof(std::string) > sizeof(json::json_array) ? sizeof(std::string) :
+					sizeof(json::json_array) > sizeof(json::json_object) ?
+					sizeof(json::json_array) : sizeof(json::json_object);
 
-			// вычисление размера выравнивания 
-			static constexpr size_t align_size =
-				alignof(bool) > alignof(double) ? alignof(bool) :
-				alignof(double) > alignof(std::string) ? alignof(double) :
-				alignof(std::string) > alignof(json::json_array) ? alignof(std::string) :
-				alignof(json::json_array) > alignof(json::json_object) ?
-				alignof(json::json_array) : alignof(json::json_object);
+				// вычисление размера выравнивания 
+				static constexpr size_t align_size =
+					alignof(bool) > alignof(double) ? alignof(bool) :
+					alignof(double) > alignof(std::string) ? alignof(double) :
+					alignof(std::string) > alignof(json::json_array) ? alignof(std::string) :
+					alignof(json::json_array) > alignof(json::json_object) ?
+					alignof(json::json_array) : alignof(json::json_object);
 
-			alignas(align_size) char _storage[buffer_size]; // буфер для хранения данных
+				alignas(align_size) char _storage[buffer_size]; // буфер для хранения данных
 
-			value_type _type; // тип
-		};
+				value_type _type; // тип
+			};
 
-		// сравнение числовых типов
-		static bool compare_num_types(const json_storage & a, const json_storage & b);
-		
-		// проверка числовых типов
-		static bool check_num_types(const value_type & a, const value_type & b);
+			// сравнение числовых типов
+			static bool compare_num_types(const json_storage & a, const json_storage & b);
 
-		// преобразует в число
-		static double cast_to_double(const json_storage & data);
+			// проверка числовых типов
+			static bool check_num_types(const value_type & a, const value_type & b);
+
+			// преобразует в число
+			static double cast_to_double(const json_storage & data);
+		}
 	}
 
 	// класс итератора
@@ -455,9 +458,9 @@ namespace json {
 		// поиск всех значений по указанному ключу в объекте
 		json_pointer_array select_in_object(const char * name);
 
-		std::unique_ptr<json::impl::json_storage> _storage; // хранилище данных
+		std::unique_ptr<json::core::impl::json_storage> _storage; // хранилище данных
 	};
 
 }
 
-#endif
+#endif // !_DRONJSON_BASE_IO_

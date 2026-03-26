@@ -2,27 +2,27 @@
 
 using namespace json;
 
-base_error::base_error(error_category category, size_t line, size_t col, const std::string & message)
+error::error(error_category category, size_t line, size_t col, const std::string & message)
 	: _error_cat(category), _line(line), _col(col), _message(message), err(format_message()){}
 
 
-size_t base_error::line() const{
+size_t error::line() const{
 	return _line;
 }
 
-size_t base_error::column() const{
+size_t error::column() const{
 	return _col;
 }
 
-error_category base_error::category() const{
+error_category error::category() const{
 	return _error_cat;
 }
 
-const char * base_error::what() const noexcept {
+const char * error::what() const noexcept {
 	return err.c_str();
 }
 
-std::string base_error::format_message(){
+std::string error::format_message(){
 	std::string result = "JSON ";
 	switch (_error_cat) {
 	case error_category::io_error:

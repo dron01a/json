@@ -2,8 +2,7 @@
 #define _DRONJSON_WRITER_
 
 #include "error.h"
-#include "encoding.h"
-#include "output_processor.h"
+#include "io.h"
 #include "json_value.h"
 
 namespace json {
@@ -27,22 +26,19 @@ namespace json {
 	class write_config {
 	public:
 
-		// режимы синтаксиса
-		enum class sinax_mode : uint8_t { JSON, XML };
-
 		// режимы сбора ошибок
 		enum class error_mode : uint8_t { strict, collect };
 		
 		// конструктор класса
 		write_config(encoding enc = encoding::ascii,
-			sinax_mode sm = sinax_mode::JSON,
+			output_format sm = output_format::JSON,
 			error_mode em = error_mode::strict);
 
 		// возвращает текущюю кодировку
 		encoding & encoding();
 
 		// возвращает текущий синтаксис
-		sinax_mode & sinax();
+		output_format & sinax();
 
 		// возвращает текущий режим сбора ошибок
 		error_mode & error_halding();
@@ -71,7 +67,7 @@ namespace json {
 	private:
 		uint32_t _flags; // флаги
 		json::encoding _encoding;
-		sinax_mode _sinax_mode;
+		output_format _sinax_mode;
 		error_mode _error_mode;
 		size_t _indent_size = 2; 
 		size_t _space_size = 1;
@@ -84,42 +80,44 @@ namespace json {
 	// результат записи
 	struct write_result {
 		bool success = false; // успешная запись или нет
-		std::vector<std::unique_ptr<base_error>> errors; // ошибки полученные при записи
+		std::vector<std::unique_ptr<error>> errors; // ошибки полученные при записи
 	};
 
-	namespace impl {
+	namespace core {
 
-		using namespace io;
-		using namespace io_base;
-		using namespace encodings;
+		namespace impl {
 
-		// класс записи
-		class writer_impl {
-		public:
-			// конструктор 
-			writer_impl(i_output_ptr_ref output, write_config conf);
+			using namespace io;
+			using namespace io::io_base;
+			using namespace io::encodings;
 
-			// записывает значение 
-			write_result write(const json_value & json_val);
+			// класс записи
+			class writer_impl {
+			public:
+				// конструктор 
+				writer_impl(i_output_ptr_ref output, write_config conf);
 
-		private:
+				// записывает значение 
+				write_result write(const json_value & json_val);
 
-			// записывает json_value
-			void write_value(const json_value & json_val, write_result & res);
+			private:
 
-			// запись объекта
-			void write_object(const json_object & data, write_result & res);
+				// записывает json_value
+				void write_value(const json_value & json_val, write_result & res);
 
-			// запись массива
-			void write_array(const json_array & data, write_result & res);
+				// запись объекта
+				void write_object(const json_object & data, write_result & res);
 
-			i_output_ptr_ref _output; // куда выводить
-			i_encoder_ptr _encoder; // энкодер
-			i_output_processor_ptr _output_proc; // обработчик вывода 
-		};
+				// запись массива
+				void write_array(const json_array & data, write_result & res);
 
+				i_output_ptr_ref _output; // куда выводить
+				i_encoder_ptr _encoder; // энкодер
+				i_output_processor_ptr _output_proc; // обработчик вывода 
+			};
+
+		}
 	}
-
 }
 
 #endif

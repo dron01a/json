@@ -9,6 +9,12 @@
 
 namespace json {
 
+	using namespace json;
+	using namespace json::core::io;
+	using namespace json::core::io::io_base;
+	using namespace json::core::io::encodings;
+	using namespace json::core::impl;
+
 	// класс DOM-парсера
 	class dom_parser {
 	public:
@@ -27,7 +33,7 @@ namespace json {
 	private:
 
 		// запускает парсинг
-		static void parse(json::parse_result & res, json::io_base::i_input_ptr_ref input, parse_config & config);
+		static void parse(json::parse_result & res, i_input_ptr_ref input, parse_config & config);
 	};
 
 	// класс для записи данных 
