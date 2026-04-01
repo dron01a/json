@@ -53,7 +53,6 @@ private:
 class tester {
 public:
 
-	//tester() {};
 
 	static tester & inst() {
 		static tester _inst;
