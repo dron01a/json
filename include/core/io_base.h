@@ -111,6 +111,7 @@ namespace json {
 
 				private:
 
+					bool valid;
 					std::ifstream _file; // файловый поток
 				};
 				

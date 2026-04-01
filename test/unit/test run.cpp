@@ -5,10 +5,21 @@
 
 #define _ALL_TESTS_RUN
 
+// io_base tests
 #include "../unit/input test.cpp"
+
+// encodings test
+#include "../unit/ascii_decoder test.cpp"
+#include "../unit/utf8_decoder test.cpp"
+
+// io tests
+#include "../unit/base_input_processor test.cpp"
+
+// json value tests
 #include "../unit/json_storage test.cpp"
 #include "../unit/json_value test.cpp"
-#include "../unit/base_input_processor test.cpp"
+
+#include "json.h"
 
 int main() {
 	tester::inst().run();

@@ -51,9 +51,9 @@ char32_t utf8_decoder::next_char(){
 }
 
 char32_t utf8_decoder::read_impl() {
-	int _c = _input.next_char();
-	if (_c == eof_char()) {
-		return static_cast<char32_t>(_c);
+	int_type _c = _input.next_char();
+	if ((char)_c == eof_char()) {
+		return eof_char();
 	}
 	uint8_t first = static_cast<uint8_t>(_c);
 	if (first <= 0x7F) {
@@ -117,9 +117,9 @@ char32_t ascii_decoder::next_char(){
 		_buff.pop_back();
 		return _cur_char;
 	}
-	uint8_t _c = _input.next_char();
+	uint8_t _c = static_cast<uint8_t>(_input.next_char());
 	if ((char)_c == eof_char()) {
-		_cur_char = _c;
+		_cur_char = eof_char();
 	}
 	else if (_c > 0x7F) {
 		_cur_char = '?';

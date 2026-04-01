@@ -48,16 +48,6 @@ public:
 		return _data[_pos];
 	}
 
-	void position(size_t pos) override {
-		if (pos < _data.size() && pos >= 0) {
-			_pos = pos;
-		}
-	}
-
-	size_t position() override {
-		return _pos;
-	}
-	
 	void clear_peek_buff() override {
 		_buff.clear();
 	}
@@ -66,9 +56,6 @@ public:
 		_buff.push_back(c);
 	}
 
-	bool eof() override {
-		return _pos >= _data.size();
-	}
 	json::encoding type() {
 		return json::encoding::ascii;
 	}

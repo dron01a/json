@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 
-#include "input_processor.h"
+#include "io_base.h"
 
 #include "../tools/tests_framework.h"
 

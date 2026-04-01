@@ -26,7 +26,7 @@ std::string io_error::form_message(error_code code, std::string file_name) {
 }
 
 int_type json::core::io::io_base::eof_char() {
-	return char_traits::eof();
+	return json::core::io::io_base::char_traits::eof();
 }
 
 json::core::io::io_base::string_input_policy::string_input_policy(const std::string & src) {
@@ -42,12 +42,12 @@ size_t json::core::io::io_base::string_input_policy::fill_buff(char * buff, size
 	size_t aval = _src.size() - _pos;
 	size_t size_to_copy = (buff_size < aval) ? buff_size : aval;
 	memcpy(buff, c_ptr + _pos, size_to_copy);
-	_pos += size_to_copy - 1;
+	_pos += size_to_copy;
 	return size_to_copy;
 }
 
 bool json::core::io::io_base::string_input_policy::eof() {
-	return !(_pos < _src.size() - 1);
+	return !(_pos <= _src.size() - 1);
 }
 
 void json::core::io::io_base::string_input_policy::seekg(int pos, dir dir) {
@@ -83,6 +83,7 @@ bool json::core::io::io_base::string_input_policy::good() {
 
 json::core::io::io_base::file_input_policy::file_input_policy(const std::string & file_name) {
 	_file.open(file_name, std::ios::in | std::ios::binary);
+	valid = _file.good();
 }
 
 json::core::io::io_base::file_input_policy::~file_input_policy() {
@@ -98,6 +99,7 @@ size_t json::core::io::io_base::file_input_policy::fill_buff(char * buff, size_t
 		}
 		return len;
 	}
+	valid = false;
 	return 0;
 }
 
@@ -125,7 +127,7 @@ size_t json::core::io::io_base::file_input_policy::pos() {
 }
 
 bool json::core::io::io_base::file_input_policy::good() {
-	return _file.good();
+	return valid;
 }
 
 json::core::io::io_base::stream_input_policy::stream_input_policy(std::istream & stream) {
