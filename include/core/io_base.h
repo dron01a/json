@@ -7,7 +7,10 @@
 
 #include "error.h"
 
+#define INPUT_BUFFER_SIZE 8192
+
 namespace json {
+	
 	namespace core {
 
 		namespace io {
@@ -15,6 +18,9 @@ namespace json {
 			// базовый ввод вывод
 			namespace io_base {
 
+				using char_traits = std::char_traits<char>;
+				using int_type = char_traits::int_type;
+				
 				// класс ошибки ввода-вывода
 				class io_error : public error {
 				public:
@@ -33,104 +39,136 @@ namespace json {
 					std::string form_message(error_code code, std::string file_name);
 				};
 
-				// интерфейс ввода данных
-				class i_input {
+				// возвращает значение окончания файла
+				int_type eof_char();
+
+				enum class dir {
+					 _begin,
+					 _cur,
+					 _end
+				};
+
+				class input_policy {
 				public:
-					virtual ~i_input() = default;
-					virtual int next_char() = 0;
-					virtual int last_char() = 0;
-					virtual void seek(int n) = 0;
-					virtual bool ready() = 0;
+					virtual ~input_policy() = default;
+					virtual size_t fill_buff(char *, size_t) = 0;
 					virtual bool eof() = 0;
+					virtual void seekg(int pos, dir dir = dir::_cur) = 0;
+					virtual size_t pos() = 0;
+					virtual bool good() = 0; 
 				};
 
-				// ввод из файла
-				class file_input : public i_input {
+				class string_input_policy : public input_policy {
 				public:
-					// конструктор
-					explicit file_input(const std::string & file_name);
-					explicit file_input(const char * file_name);
 
-					// деструктор
-					~file_input();
+					// конструтор класса
+					explicit string_input_policy(const std::string & src);
 
-					// возвращает следующий символ
-					int next_char();
+					// заполнение буфера
+					size_t fill_buff(char * buff, size_t buff_size) override;
 
-					// возвращает предыдущий символ
-					int last_char();
+					// возвращает true если достигнут конец
+					bool eof() override;
 
-					// делает шаг назад
-					void seek(int n);
+					// перемещение 
+					void seekg(int pos, dir dir = dir::_cur) override;
 
-					// проверка на готовность к работе
-					bool ready();
+					// возвращает текущюю позицию 
+					size_t pos();
 
-					// конец файла
+					// возвращает true если готов к работе
+					bool good(); 
+
+				private:
+
+					int _pos; // текущая позиция 
+					std::string _src; // строка с информацией 
+				};
+
+				class file_input_policy : public input_policy {
+				public:
+
+					// конструтор класса
+					explicit file_input_policy(const std::string & file_name);
+
+					// деструктор 
+					~file_input_policy();
+
+					// заполнение буфера
+					size_t fill_buff(char * buff, size_t buff_size) override;
+
+					// возвращает true если достигнут конец
+					bool eof() override;
+
+					// перемещение 
+					void seekg(int pos, dir dir = dir::_cur) override;
+
+					// возвращает текущюю позицию 
+					size_t pos() override;
+
+					// возвращает true если готов к работе
+					bool good();
+
+				private:
+
+					std::ifstream _file; // файловый поток
+				};
+				
+				class stream_input_policy : public input_policy {
+				public:
+					// конструтор класса
+					explicit stream_input_policy(std::istream & stream);
+
+					// деструктор 
+					~stream_input_policy();
+
+					// заполнение буфера
+					size_t fill_buff(char * buff, size_t buff_size) override;
+
+					// возвращает true если достигнут конец
+					bool eof() override;
+
+					// перемещение 
+					void seekg(int pos, dir dir = dir::_cur) override;
+
+					// возвращает текущюю позицию 
+					size_t pos() override;
+
+					// возвращает true если готов к работе
+					bool good();
+
+				private:
+					std::istream * _stream;
+				};
+
+				// класс ввода даннных
+				class input {
+				public:
+
+					// конструктор класса
+					input(std::unique_ptr<input_policy> policy);
+
+					// следующий символ
+					int_type next_char();
+
+					// предыдущий символ
+					int_type last_char();
+
+					// перемещение
+					void seekg(int pos, dir dir = dir::_cur);
+
+					// проверка состояния 
+					bool good();
+
+					// проверка конца
 					bool eof();
 
 				private:
-					std::ifstream file;
-					int cur_char;
-				};
 
-				// ввод из строки
-				class string_input : public i_input {
-				public:
-					// конструктор
-					explicit string_input(const std::string & string);
-					explicit string_input(const char * string);
-
-					// деструктор
-					~string_input();
-
-					// возвращает предыдущий символ
-					int next_char();
-
-					// возвращает текущий символ
-					int last_char();
-
-					// устанавливает позицию
-					void seek(int n);
-
-					// проверка на готовность к работе
-					bool ready();
-
-					// конец файла
-					bool eof();
-
-				private:
-					size_t position = 0; // текущая позиция 
-					std::string str; // строка с json
-				};
-
-				// ввод из потока
-				class stream_input : public i_input {
-				public:
-					// конструктор
-					explicit stream_input(std::istream & stream);
-
-					// деструктор
-					~stream_input();
-
-					// возвращает предыдущий символ
-					int next_char();
-
-					// возвращает текущий символ
-					int last_char();
-
-					// делает шаг назад
-					void seek(int n);
-
-					// проверка на готовность к работе
-					bool ready();
-
-					// конец файла
-					bool eof();
-
-				private:
-					std::istream * stream;
-					int cur_char;
+					char _buff[INPUT_BUFFER_SIZE]; // буфер для хранения данных
+					size_t _buff_pos; // текущая позиция в буфере
+					size_t _buff_size; // текущий размер буфера
+					std::unique_ptr<input_policy> _policy; // политика ввода данных
 				};
 
 				// интерфейс вывода данных
@@ -199,11 +237,11 @@ namespace json {
 					std::ostream * _desc; // указатель на поток куда записываем
 				};
 
-				using i_input_ptr = std::unique_ptr<i_input>;
-				using i_input_ptr_ref = std::unique_ptr<i_input> &;
+				using input_ref = input &;
 				using i_output_ptr = std::unique_ptr<i_output>;
 				using i_output_ptr_ref = std::unique_ptr<i_output> &;
 			};
+
 		}
 	}
 };

@@ -4,9 +4,7 @@ using namespace json;
 using namespace json::core::io::io_base;
 using namespace json::core::io::encodings;
 
-base_decoder::base_decoder(i_input_ptr_ref input) : _input(input) {
-	_position = 0;
-}
+base_decoder::base_decoder(input_ref input) : _input(input), _position(0) { }
 
 char32_t base_decoder::current_char() {
 	if (!_buff.empty()) {
@@ -40,14 +38,14 @@ void base_decoder::push_buff(char32_t c) {
 }
 
 bool base_decoder::eof() {
-	return _eof || _input->eof();
+	return _eof || _input.eof();
 }
 
 encoding base_decoder::type() {
 	return _type;
 }
 
-utf8_decoder::utf8_decoder(i_input_ptr_ref input) : base_decoder(input) {
+utf8_decoder::utf8_decoder(input_ref input) : base_decoder(input) {
 	_type = encoding::utf8;
 	_bom = skip_bom();
 }
@@ -67,15 +65,15 @@ void utf8_decoder::position(size_t pos){
 	if (pos < 0) {
 		return;
 	}
-	_input->seek(-(int)_position);
+	_input.seekg(-(int)_position);
 	_bom = skip_bom();
 	_position = pos;
-	_input->seek(pos);
+	_input.seekg(pos);
 }
 
 char32_t utf8_decoder::read_impl() {
-	int _c = _input->next_char();
-	if (_c == std::char_traits<char>::eof() || _input->eof()) {
+	int _c = _input.next_char();
+	if (_c == std::char_traits<char>::eof() || _input.eof()) {
 		_eof = true;
 		return static_cast<char32_t>(_c);
 	}
@@ -104,7 +102,7 @@ char32_t utf8_decoder::read_impl() {
 		return 0xFFFD;
 	}
 	for (size_t i = 1; i < length; ++i) {
-		_c = _input->next_char();
+		_c = _input.next_char();
 		if (_c == std::char_traits<char>::eof()) {
 			return std::char_traits<char>::eof();
 		}
@@ -119,9 +117,9 @@ char32_t utf8_decoder::read_impl() {
 bool utf8_decoder::skip_bom(){
 	uint8_t bom[3];
 	for (size_t i = 0; i < 3; ++i) {
-		int _c = _input->next_char();
+		int _c = _input.next_char();
 		if (_c == std::char_traits<char>::eof()) {
-			_input->seek(-(int)_position);
+			_input.seekg(-(int)_position);
 			_position = 0;
 			return false;
 		}
@@ -132,11 +130,11 @@ bool utf8_decoder::skip_bom(){
 		return true;
 	}
 	_position = 0;
-	_input->seek(-3);
+	_input.seekg(-3);
 	return false;
 }
 
-ascii_decoder::ascii_decoder(i_input_ptr_ref input) : base_decoder(input) {
+ascii_decoder::ascii_decoder(input_ref input) : base_decoder(input) {
 	_type = encoding::ascii;
 }
 
@@ -147,7 +145,7 @@ char32_t ascii_decoder::next_char(){
 		_position++;
 		return _cur_char;
 	}
-	uint8_t _c = _input->next_char();
+	uint8_t _c = _input.next_char();
 	_position++;
 	if ((char)_c == std::char_traits<char>::eof()) {
 		_eof = true;
@@ -169,9 +167,9 @@ void ascii_decoder::position(size_t pos){
 	if (pos < 0) {
 		return;
 	}
-	_input->seek(-(int)_position);
+	_input.seekg(-(int)_position);
 	_position = pos;
-	_input->seek(pos);
+	_input.seekg(pos);
 }
 
 utf8_encoder::utf8_encoder(i_output_ptr_ref dest) : _output(dest) {}

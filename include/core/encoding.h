@@ -52,7 +52,7 @@ namespace json {
 				// базовый декодер 
 				class base_decoder : public i_decoder {
 				public:
-					explicit base_decoder(io_base::i_input_ptr_ref input);
+					explicit base_decoder(io_base::input_ref input);
 					virtual char32_t next_char() = 0;
 					char32_t current_char();
 					char32_t peek_char();
@@ -67,14 +67,14 @@ namespace json {
 					std::vector<char32_t> _buff; // буфер для символов 
 					size_t _position; // позиция
 					bool _eof = false; // конец
-					io_base::i_input_ptr_ref _input; // источник получения данных
+					io_base::input & _input; // источник получения данных
 					encoding _type;
 				};
 
 				// декодер utf8
 				class utf8_decoder : public base_decoder {
 				public:
-					explicit utf8_decoder(io_base::i_input_ptr_ref input);
+					explicit utf8_decoder(io_base::input_ref input);
 					char32_t next_char();
 					void position(size_t pos);
 				private:
@@ -86,7 +86,7 @@ namespace json {
 				// декодер ascii
 				class ascii_decoder : public base_decoder {
 				public:
-					explicit ascii_decoder(io_base::i_input_ptr_ref input);
+					explicit ascii_decoder(io_base::input_ref input);
 					char32_t next_char();
 					void position(size_t pos);
 				};

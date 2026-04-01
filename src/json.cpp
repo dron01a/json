@@ -8,8 +8,8 @@ using namespace json::core::impl;
 
 parse_result dom_parser::from_file(const char * file_name, parse_config config){
 	parse_result res;
-	i_input_ptr _input = std::make_unique<file_input>(file_name);
-	if (!_input->ready()) {
+	input _input(std::make_unique<file_input_policy>(file_name));
+	if (!_input.good()) {
 		res.errors.push_back(std::make_unique<io_error>(io_error::error_code::_file_not_found, 0, 0, file_name));
 		return res;
 	}
@@ -23,8 +23,8 @@ parse_result dom_parser::from_file(const std::string & file_name, parse_config c
 
 parse_result dom_parser::from_stream(std::istream & stream, parse_config config){
 	parse_result res;
-	i_input_ptr _input = std::make_unique<stream_input>(stream);
-	if (!_input->ready()) {
+	input _input(std::make_unique<stream_input_policy>(stream));
+	if (!_input.good()) {
 		res.errors.push_back(std::make_unique<io_error>(io_error::error_code::_stream_is_bad, 0, 0));
 		return res;
 	}
@@ -34,8 +34,8 @@ parse_result dom_parser::from_stream(std::istream & stream, parse_config config)
 
 parse_result dom_parser::from_string(const char * str, parse_config config) {
 	parse_result res;
-	i_input_ptr _input = std::make_unique<string_input>(str);
-	if (!_input->ready()) {
+	input _input(std::make_unique<string_input_policy>(str));
+	if (!_input.good()) {
 		res.errors.push_back(std::make_unique<io_error>(io_error::error_code::_string_is_empty, 0, 0));
 		return res;
 	}
@@ -47,7 +47,7 @@ parse_result dom_parser::from_string(const std::string & str, parse_config confi
 	return from_string(str.c_str(), config);
 }
 
-void dom_parser::parse(parse_result & res, i_input_ptr_ref input, parse_config & config) {
+void dom_parser::parse(parse_result & res, input_ref input, parse_config & config) {
 	dom_parser_impl _pars(input, config);
 	res = _pars.parse();
 }

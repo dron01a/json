@@ -22,7 +22,7 @@ namespace json {
 		namespace io {
 
 			// возвращает декодер в зависимости от типа кодировки
-			encodings::i_decoder_ptr make_decoder(encoding enc, io_base::i_input_ptr_ref input);
+			encodings::i_decoder_ptr make_decoder(encoding enc, io_base::input & input);
 
 			// возвращает энкодер в зависимости от типа кодировки
 			encodings::i_encoder_ptr make_encoder(encoding enc, io_base::i_output_ptr_ref output);

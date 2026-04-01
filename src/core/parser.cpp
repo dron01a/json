@@ -51,7 +51,7 @@ std::string parse_error::form_message(error_code code, std::string context) {
 	return _result;
 }
 
-dom_parser_impl::dom_parser_impl(i_input_ptr_ref input, parse_config & conf){
+dom_parser_impl::dom_parser_impl(input_ref input, parse_config & conf){
 	_decoder = make_decoder(conf.encoding(), input);
 	_input_proc = make_input_processor(conf.sinax());
 	if (conf.error_halding() == parse_config::error_mode::collect) {

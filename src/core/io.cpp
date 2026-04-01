@@ -6,7 +6,7 @@ using namespace json::core::io;
 using namespace json::core::io::io_base;
 using namespace json::core::io::encodings;
 
-i_decoder_ptr io::make_decoder(encoding enc, i_input_ptr_ref input) {
+i_decoder_ptr io::make_decoder(encoding enc, input & input) {
 	switch (enc) {
 	case json::encoding::ascii:
 		return std::make_unique<ascii_decoder>(input);

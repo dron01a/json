@@ -246,3 +246,4 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 /test.json
+/test/res/input_test_data.json

@@ -25,117 +25,200 @@ std::string io_error::form_message(error_code code, std::string file_name) {
 	};
 }
 
-file_input::file_input(const std::string & file_name) {
-	file.open(file_name, std::ios::in | std::ios::binary);
+int_type json::core::io::io_base::eof_char() {
+	return char_traits::eof();
 }
 
-file_input::file_input(const char * file_name) {
-	file.open(file_name, std::ios::in | std::ios::binary);
+json::core::io::io_base::string_input_policy::string_input_policy(const std::string & src) {
+	_src = src;
+	_pos = 0;
 }
 
-file_input::~file_input() {
-	if (file.is_open()) {
-		file.close();
+size_t json::core::io::io_base::string_input_policy::fill_buff(char * buff, size_t buff_size) {
+	if (eof()) {
+		return 0;
+	}
+	const char * c_ptr = _src.c_str();
+	size_t aval = _src.size() - _pos;
+	size_t size_to_copy = (buff_size < aval) ? buff_size : aval;
+	memcpy(buff, c_ptr + _pos, size_to_copy);
+	_pos += size_to_copy - 1;
+	return size_to_copy;
+}
+
+bool json::core::io::io_base::string_input_policy::eof() {
+	return !(_pos < _src.size() - 1);
+}
+
+void json::core::io::io_base::string_input_policy::seekg(int pos, dir dir) {
+	switch (dir) {
+	case json::core::io::io_base::dir::_begin:
+		if (pos < 0) {
+			return;
+		}
+		_pos = pos;
+		break;
+	case json::core::io::io_base::dir::_cur:
+		if (pos < 0 && _pos + pos < 0) {
+			return;
+		}
+		_pos += pos;
+		break;
+	case json::core::io::io_base::dir::_end:
+		if (pos < 0) {
+			return;
+		}
+		_pos = _src.size() - pos;
+		break;
 	}
 }
 
-int file_input::next_char() {
-	cur_char = file.get();
-	if (file.eof()) {
-		cur_char = std::char_traits<char>::eof();
+size_t json::core::io::io_base::string_input_policy::pos() {
+	return _pos;
+}
+
+bool json::core::io::io_base::string_input_policy::good() {
+	return !_src.empty();
+}
+
+json::core::io::io_base::file_input_policy::file_input_policy(const std::string & file_name) {
+	_file.open(file_name, std::ios::in | std::ios::binary);
+}
+
+json::core::io::io_base::file_input_policy::~file_input_policy() {
+	_file.close();
+}
+
+size_t json::core::io::io_base::file_input_policy::fill_buff(char * buff, size_t buff_size) {
+	if (!_file.eof()) {
+		_file.read(buff, buff_size);
+		std::streamsize len = _file.gcount();
+		if (len < buff_size) {
+			buff[len] = eof_char();
+		}
+		return len;
 	}
-	return cur_char;
+	return 0;
 }
 
-int file_input::last_char() {
-	return cur_char;
+bool json::core::io::io_base::file_input_policy::eof() {
+	return _file.eof();
 }
 
-void file_input::seek(int n) {
-	file.seekg(n, std::ios::cur);
-}
-
-bool file_input::ready() {
-	return file.good() && file.is_open();
-}
-
-bool file_input::eof(){
-	return file.eof();
-}
-
-string_input::string_input(const std::string & string) {
-	str = string;
-}
-
-string_input::string_input(const char * string) {
-	str = string;
-}
-
-string_input::~string_input(){}
-
-int string_input::next_char() {
-	if (position < str.size() && position != -1) {
-		return str[position++];
-	}
-	position = -1;
-	return std::char_traits<char>::eof();
-}
-
-int string_input::last_char() {
-	if (position != -1) {
-		return str[position];
-	}
-	if (position == 0) {
-		return str[0];
-	}
-	return std::char_traits<char>::eof();
-}
-
-void string_input::seek(int n) {
-	if (position +  n <  str.size() - 1 && position + n >= 0) {
-		position += n;
+void json::core::io::io_base::file_input_policy::seekg(int pos, dir dir) {
+	_file.clear();
+	switch (dir) {
+	case json::core::io::io_base::dir::_begin:
+		_file.seekg(pos, std::ios_base::beg);
+		break;
+	case json::core::io::io_base::dir::_cur:
+		_file.seekg(pos, std::ios_base::cur);
+		break;
+	case json::core::io::io_base::dir::_end:
+		_file.seekg(pos, std::ios_base::end);
+		break;
 	}
 }
 
-bool string_input::ready() {
-	return !str.empty() && position < str.size() && position >= 0;
+size_t json::core::io::io_base::file_input_policy::pos() {
+	return (size_t)_file.tellg();
 }
 
-bool string_input::eof(){
-	return !(position < str.size() - 1);
+bool json::core::io::io_base::file_input_policy::good() {
+	return _file.good();
 }
 
-stream_input::stream_input(std::istream & stream) {
-	this->stream = &stream;
+json::core::io::io_base::stream_input_policy::stream_input_policy(std::istream & stream) {
+	_stream = &stream;
 }
 
-stream_input::~stream_input() {
-	stream = nullptr;
+json::core::io::io_base::stream_input_policy::~stream_input_policy() {
+	_stream = nullptr;
 }
 
-int stream_input::next_char() {
-	*stream >> cur_char;
-	if (stream->eof()) {
-		cur_char = std::char_traits<char>::eof();
+size_t json::core::io::io_base::stream_input_policy::fill_buff(char * buff, size_t buff_size) {
+	if (!_stream->eof()) {
+		_stream->read(buff, buff_size);
+		std::streamsize len = _stream->gcount();
+		if (len < buff_size) {
+			buff[len] = eof_char();
+		}
+		return len;
 	}
-	return cur_char;
+	return 0;
 }
 
-int stream_input::last_char() {
-	return cur_char;
+bool json::core::io::io_base::stream_input_policy::eof() {
+	return _stream->eof();
 }
 
-void stream_input::seek(int n) {
-	stream->seekg(n, std::ios::cur);
+void json::core::io::io_base::stream_input_policy::seekg(int pos, dir dir) {
+	_stream->clear();
+	switch (dir) {
+	case json::core::io::io_base::dir::_begin:
+		_stream->seekg(pos, std::ios_base::beg);
+		break;
+	case json::core::io::io_base::dir::_cur:
+		_stream->seekg(pos, std::ios_base::cur);
+		break;
+	case json::core::io::io_base::dir::_end:
+		_stream->seekg(pos, std::ios_base::end);
+		break;
+	}
 }
 
-bool stream_input::ready() {
-	return stream->good();
+size_t json::core::io::io_base::stream_input_policy::pos() {
+	return _stream->tellg();
 }
 
-bool stream_input::eof(){
-	return stream->eof();
+bool json::core::io::io_base::stream_input_policy::good() {
+	return _stream->good();
 }
+
+json::core::io::io_base::input::input(std::unique_ptr<input_policy> policy) : _buff_pos(0), _policy(std::move(policy)) {
+	_buff_size = _policy->fill_buff(_buff, INPUT_BUFFER_SIZE);
+}
+
+int_type json::core::io::io_base::input::next_char() {
+	if (_buff_pos >= _buff_size && !_policy->eof()) {
+		_buff_pos = 0;
+		_buff_size = _policy->fill_buff(_buff, INPUT_BUFFER_SIZE);
+		if (_buff_size == 0) {
+			return eof_char();
+		}
+	}
+	return _buff[_buff_pos++];
+}
+
+int_type json::core::io::io_base::input::last_char() {
+	if (_buff_pos == 0) {
+		return _buff[0];
+	}
+	if (_buff_pos <= _buff_size) {
+		return _buff[_buff_pos - 1];
+	}
+	return eof_char();
+}
+
+void json::core::io::io_base::input::seekg(int pos, dir dir) {
+	if (_buff_pos + pos >= 0 && _buff_pos + pos < _buff_size) {
+		_buff_pos += pos;
+	}
+	else {
+		_policy->seekg(pos, dir);
+		_buff_size = _policy->fill_buff(_buff, INPUT_BUFFER_SIZE);
+		_buff_pos = 0;
+	}
+}
+
+bool json::core::io::io_base::input::good() {
+	return _policy->good();
+}
+
+bool json::core::io::io_base::input::eof() {
+	return _policy->eof();
+}
+
 
 file_output::file_output(const std::string & file_name) {
 	_desc.open(file_name, std::ios::out | std::ios::binary);

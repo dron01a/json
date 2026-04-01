@@ -77,7 +77,7 @@ namespace json {
 			public:
 
 				// конструктор
-				dom_parser_impl(i_input_ptr_ref input, parse_config & conf);
+				dom_parser_impl(input_ref input, parse_config & conf);
 
 				// запуск парсинга
 				parse_result parse();
