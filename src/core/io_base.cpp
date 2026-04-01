@@ -216,7 +216,7 @@ bool json::core::io::io_base::input::good() {
 }
 
 bool json::core::io::io_base::input::eof() {
-	return _policy->eof();
+	return _policy->eof() && _buff[_buff_pos] == eof_char();
 }
 
 

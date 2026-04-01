@@ -237,7 +237,7 @@ uint32_t base_input_processor::parse_unicode_pair(i_decoder_ptr_ref _decoder){
 	for (size_t i = 0; i < 4; ++i) {
 		uint8_t c = _decoder->next_char();
 		_col++;
-		if (c == std::char_traits<char>::eof()) {
+		if (c == eof_char()) {
 			throw input_error(input_error::error_code::_invalid_unicode_char, _line, _col);
 		}
 		else if (c >= '0' && c <= '9') {
@@ -273,7 +273,7 @@ token base_input_processor::parse_literal(i_decoder_ptr_ref _decoder, const char
 		cur_char = _decoder->next_char();
 		*literal_str++;
 	}
-	if (cur_char != std::char_traits<char>::eof() && cur_char != '\t' && cur_char != ' ' &&
+	if (cur_char != eof_char() && cur_char != '\t' && cur_char != ' ' &&
 		cur_char != ']' && cur_char != '}' && cur_char != '\n' && cur_char != '\r' && cur_char != ',') {
 		throw input_error(input_error::error_code::_literal_error, _line, _col);
 	}

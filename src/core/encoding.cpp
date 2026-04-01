@@ -4,7 +4,7 @@ using namespace json;
 using namespace json::core::io::io_base;
 using namespace json::core::io::encodings;
 
-base_decoder::base_decoder(input_ref input) : _input(input), _position(0) { }
+base_decoder::base_decoder(input_ref input) : _input(input) { }
 
 char32_t base_decoder::current_char() {
 	if (!_buff.empty()) {
@@ -14,19 +14,13 @@ char32_t base_decoder::current_char() {
 }
 
 char32_t base_decoder::peek_char() {
-	size_t temp_pos = _position;
 	char32_t temp_cur_char = _cur_char;
 	auto temp_buff = _buff;
 	char32_t peek_char = next_char();
 	_buff = std::move(temp_buff);
-	_position = temp_pos;
 	_cur_char = temp_cur_char;
 	_buff.push_back(peek_char);
 	return peek_char;
-}
-
-size_t base_decoder::position() {
-	return _position;
 }
 
 void base_decoder::clear_peek_buff() {
@@ -35,10 +29,6 @@ void base_decoder::clear_peek_buff() {
 
 void base_decoder::push_buff(char32_t c) {
 	_buff.push_back(c);
-}
-
-bool base_decoder::eof() {
-	return _eof || _input.eof();
 }
 
 encoding base_decoder::type() {
@@ -54,31 +44,18 @@ char32_t utf8_decoder::next_char(){
 	if (!_buff.empty()) {
 		_cur_char = _buff.back();
 		_buff.pop_back();
-	//	_position++;
 		return _cur_char;
 	}
 	_cur_char = read_impl();
 	return _cur_char;
 }
 
-void utf8_decoder::position(size_t pos){
-	if (pos < 0) {
-		return;
-	}
-	_input.seekg(-(int)_position);
-	_bom = skip_bom();
-	_position = pos;
-	_input.seekg(pos);
-}
-
 char32_t utf8_decoder::read_impl() {
 	int _c = _input.next_char();
-	if (_c == std::char_traits<char>::eof() || _input.eof()) {
-		_eof = true;
+	if (_c == eof_char()) {
 		return static_cast<char32_t>(_c);
 	}
 	uint8_t first = static_cast<uint8_t>(_c);
-	_position++;
 	if (first <= 0x7F) {
 		return static_cast<char32_t>(first);
 	}
@@ -98,13 +75,12 @@ char32_t utf8_decoder::read_impl() {
 		code = first & 0x07;
 	}
 	else {
-		_position++;
 		return 0xFFFD;
 	}
 	for (size_t i = 1; i < length; ++i) {
 		_c = _input.next_char();
-		if (_c == std::char_traits<char>::eof()) {
-			return std::char_traits<char>::eof();
+		if (_c == eof_char()) {
+			return eof_char();
 		}
 		code = (code << 6) | (_c & 0x03F);
 	}
@@ -118,18 +94,15 @@ bool utf8_decoder::skip_bom(){
 	uint8_t bom[3];
 	for (size_t i = 0; i < 3; ++i) {
 		int _c = _input.next_char();
-		if (_c == std::char_traits<char>::eof()) {
-			_input.seekg(-(int)_position);
-			_position = 0;
+		if (_c == eof_char()) {
+			_input.seekg(-(int)(i+1));
 			return false;
 		}
 		bom[i] = static_cast<uint8_t>(_c);
 	}
 	if (bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF) {
-		_position = 3;
 		return true;
 	}
-	_position = 0;
 	_input.seekg(-3);
 	return false;
 }
@@ -142,13 +115,10 @@ char32_t ascii_decoder::next_char(){
 	if (!_buff.empty()) {
 		_cur_char = _buff.back();
 		_buff.pop_back();
-		_position++;
 		return _cur_char;
 	}
 	uint8_t _c = _input.next_char();
-	_position++;
-	if ((char)_c == std::char_traits<char>::eof()) {
-		_eof = true;
+	if ((char)_c == eof_char()) {
 		_cur_char = _c;
 	}
 	else if (_c > 0x7F) {
@@ -161,15 +131,6 @@ char32_t ascii_decoder::next_char(){
 		_cur_char = _c;
 	}
 	return _cur_char;
-}
-
-void ascii_decoder::position(size_t pos){
-	if (pos < 0) {
-		return;
-	}
-	_input.seekg(-(int)_position);
-	_position = pos;
-	_input.seekg(pos);
 }
 
 utf8_encoder::utf8_encoder(i_output_ptr_ref dest) : _output(dest) {}
