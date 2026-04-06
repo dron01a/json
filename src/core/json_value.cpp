@@ -34,7 +34,6 @@ std::string value_error::form_message(error_code code) {
 	}
 }
 
-
 json_storage::json_storage() : _type (value_type::_null) {}
 
 json_storage::json_storage(const json_storage & other){
@@ -60,25 +59,50 @@ json_storage & json_storage::operator=(json_storage && other) {
 }
 
 bool json_storage::operator==(const json_storage & other) const {
-	using vt = value_type;
 	if (other._type != _type && !check_num_types(other.type(), _type)) {
 		return false;
 	}
 	switch (_type) {
-	case json::value_type::_null:
+	case value_type::_null:
 		return true;
-	case json::value_type::_bool:
+	case value_type::_bool:
 		return *other.get<bool>() == *this->get<bool>();
-	case json::value_type::_int:
-	case json::value_type::_uint:
-	case json::value_type::_double:
+	case value_type::_int:
+	case value_type::_uint:
+	case value_type::_double:
 		return compare_num_types(*this, other);
-	case json::value_type::_string:
+	case value_type::_string:
 		return *other.get<std::string>() == *this->get<std::string>();
-	case json::value_type::_array:
-		return *other.get<json_array>() == *this->get<json_array>();
-	case json::value_type::_object:
-		return *other.get<json_object>() == *this->get<json_object>();
+	case value_type::_array: {
+		const auto & this_arr = this->get<json_array>();
+		const auto & other_arr = other.get<json_array>();
+		if (this_arr->size() != other_arr->size()) {
+			return false;
+		}
+		for (size_t i = 0; i < this_arr->size(); ++i) {
+			if (this_arr->operator[](i) != other_arr->operator[](i)) {
+				return false;
+			}
+		}
+		return true;
+		}
+	case value_type::_object: {
+		const auto & this_obj = this->get<json_object>();
+		const auto & other_obj = other.get<json_object>();
+		if (this_obj->size() != other_obj->size()) {
+			return false;
+		}
+		for (auto it = this_obj->begin(); it != this_obj->end(); ++it) {
+			auto oth = other_obj->find(it->first);
+			if (oth == other_obj->end()) {
+				return false;
+			}
+			if (it->second != oth->second) {
+				return false;
+			}
+		}
+		return true;
+		}
 	}
 }
 
@@ -799,6 +823,14 @@ jv_pointer json_value::find(const char * name) {
 	return result;
 }
 
+const jv_pointer json_value::find(const std::string & name) const {
+	return const_cast<jv_pointer>(this)->find(name.c_str());
+}
+
+const jv_pointer json_value::find(const char * name) const {
+	return const_cast<jv_pointer>(this)->find(name);
+}
+
 json_pointer_array json_value::select(const std::string & key){
 	return select(key.c_str());
 }
@@ -814,6 +846,14 @@ json_pointer_array json_value::select(const char * key){
 		break;
 	}
 	return result;
+}
+
+bool json::json_value::contains(const std::string & key) const {
+	return find(key) != nullptr;
+}
+
+bool json::json_value::contains(const char * key) const { 
+	return find(key) != nullptr;
 }
 
 jv_pointer json_value::add(const json_value & val) {

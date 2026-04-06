@@ -375,10 +375,16 @@ namespace json {
 		// возвращает занчение по имени
 		jv_pointer find(const std::string & key);
 		jv_pointer find(const char * key);
+		const jv_pointer find(const std::string & key) const;
+		const jv_pointer find(const char * key) const;
 
 		// возвращает все значения по указанному ключу
 		json_pointer_array select(const std::string & key);
 		json_pointer_array select(const char * key);
+
+		// проверяет наличие значения 
+		bool contains(const std::string & key) const;
+		bool contains(const char * key) const;
 
 		// добавляет элемент в json (при условии что масиив)
 		jv_pointer add(const json_value & val);
