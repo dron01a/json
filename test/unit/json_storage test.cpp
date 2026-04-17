@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cassert>
+
 #include "json_value.h"
 
 #include "../tools/tests_framework.h"
@@ -35,6 +36,19 @@ TEST_CASE(test_compare_operators) {
 	TEST_ASSERT(_storage1 != _storage2);
 	TEST_ASSERT(_storage1 != _storage3);
 	TEST_ASSERT(_storage2 != _storage3);
+	json_array arr1 = { 2.2, 4, "str" };
+	json_array arr2 = { 2.2, 4, "str" };
+	_storage1.set<json_array>(arr1);
+	_storage2.set<json_array>(arr2);
+	TEST_ASSERT(_storage1 == _storage2);
+	json_array arr3 = { "www", 4, "str" };
+	_storage2.set<json_array>(arr3);
+	TEST_ASSERT(_storage1 != _storage2);
+	json_object obj1 = { { "a", 1289 },{ "b", "data" } };
+	json_object obj2 = { { "a", 1289 },{ "b", "data" } };
+	_storage1.set<json_object>(obj1);
+	_storage2.set<json_object>(obj2);
+	TEST_ASSERT(_storage1 == _storage2);
 }
 
 TEST_CASE(test_copy) {
