@@ -43,6 +43,9 @@ size_t json::core::io::io_base::string_input_policy::fill_buff(char * buff, size
 	size_t size_to_copy = (buff_size < aval) ? buff_size : aval;
 	memcpy(buff, c_ptr + _pos, size_to_copy);
 	_pos += size_to_copy;
+	if (size_to_copy < buff_size) {
+		buff[size_to_copy] = eof_char();
+	}
 	return size_to_copy;
 }
 
