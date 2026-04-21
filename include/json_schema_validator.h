@@ -85,6 +85,39 @@ namespace json {
 		// проверка объектов
 		void validate_object(const json_value & scheme, const json_value & value);
 
+		// обработка поля схемы items при валидации массива 
+		void array_items_handler(const json_value & items_scheme, json_array & arr);
+
+		// обработка поля схемы uniqueItems при валидации массива 
+		void array_uniqueItems_handler(const json_value & field, json_array & arr);
+
+		// обработка поля схемы additionalItems при валидации массива 
+		void array_additionalItems_handler(jv_pointer items, const json_value & field, json_array & arr);
+
+		// обработка поля схемы contains при валидации массива 
+		void array_contains_handler(const json_value & field, json_array & arr);
+
+		// обработка поля схемы propertyNames при валидации объекта 
+		void object_propertyNames_handler(const json_value & field, json_object & obj);
+
+		// обработка поля схемы properties при валидации объекта 
+		void object_properties_handler(const json_value & field, json_object & obj);
+
+		// обработка поля схемы patternProperties при валидации объекта 
+		void object_patternProperties_handler(const json_value & field, json_object & obj);
+
+		// обработка поля схемы additionalProperties при валидации объекта (поле properties)
+		void object_properties_additional_handler(const json_value & field, const json_value & properties, json_object & obj);
+
+		// обработка поля схемы additionalProperties при валидации объекта (поле patternProperties)
+		void object_patternProperties_additional_handler(const json_value & field, const json_value & properties, json_object & obj);
+
+		// обработка поля схемы required при валидации объекта 
+		void object_required_handler(const json_value & field, json_object & obj);
+
+		// обработка поля схемы dependencies при валидации объекта 
+		void object_dependencies_handler(const json_value & field, json_object & obj);
+
 		// преобразует тип в строку 
 		std::string type_to_string(value_type type);
 
