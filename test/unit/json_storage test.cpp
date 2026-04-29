@@ -18,7 +18,7 @@ TEST_CASE(test_assign) {
 	_storage.set<std::string>("test data");
 	TEST_ASSERT(_storage.type() == value_type::_string);
 	TEST_ASSERT(*_storage.get<std::string>() == "test data");
-	json_object _obj = { { "a", 2.2 },{ "b", "test" } };
+	json_object _obj = { { "a", 2.2 }, { "b", "test" } };
 	_storage.set<json_object>(_obj);
 	TEST_ASSERT(_storage.type() == value_type::_object);
 	TEST_ASSERT(_storage.get<json_object>()->operator[]("a") == json_value(2.2));

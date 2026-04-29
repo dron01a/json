@@ -34,18 +34,21 @@ std::string value_error::form_message(error_code code) {
 	}
 }
 
-json_storage::json_storage() : _type (value_type::_null) {}
+json_storage::json_storage() noexcept : _type(value_type::_null)  {
+	std::memset(&_storage, 0, sizeof(_storage)); 
+}
 
-json_storage::json_storage(const json_storage & other){
+json_storage::json_storage(const json_storage & other) : _type(value_type::_null) {
 	copy_data(other);
 }
 
-json_storage::json_storage(json_storage && other) {
+json_storage::json_storage(json_storage && other) noexcept : _type(value_type::_null) {
 	move_data(std::move(other));
 }
 
 json_storage & json_storage::operator=(const json_storage & other) {
 	if (*this != other) {
+		clear();
 		copy_data(other);
 	}
 	return *this;
@@ -53,6 +56,7 @@ json_storage & json_storage::operator=(const json_storage & other) {
 
 json_storage & json_storage::operator=(json_storage && other) {
 	if (*this != other) {
+		clear();
 		move_data(std::move(other));
 	}
 	return *this;
@@ -117,13 +121,13 @@ json_storage::~json_storage() {
 void json_storage::clear() noexcept {
 	switch (_type) {
 	case value_type::_string:
-		get<std::string>()->~basic_string();
+		destroy<std::string>();
 		break;
 	case value_type::_array:
-		get<json_array>()->~vector();
+		destroy<json_array>();
 		break;
 	case value_type::_object:
-		get<json_object>()->~map();
+		destroy<json_object>();
 		break;
 	}
 	_type = value_type::_null;
@@ -134,93 +138,88 @@ value_type json_storage::type() const{
 }
 
 void json_storage::type(value_type new_type){
+	if (new_type == value_type::_null) {
+		return;
+	}
 	clear();
 	switch (new_type) {
 	case value_type::_bool:
-		set<bool>(false);
+		construct<bool>(false);
 		break;
 	case value_type::_int:
-		set<int>(0);
+		construct<int>(0);
 		break;
 	case value_type::_uint:
-		set<unsigned int>(0);
+		construct<unsigned int>(0);
 		break;
 	case value_type::_double:
-		set<double>(0);
+		construct<double>(0);
 		break;
 	case value_type::_string:
-		set<std::string>("");
+		construct<std::string>("");
 		break;
 	case value_type::_array:
-		set<json_array>();
+		construct<json_array>(json_array());
 		break;
 	case value_type::_object:
-		set<json_object>();
+		construct<json_object>(json_object());
 		break;
 	}
-}
-
-size_t json_storage::aligned() const noexcept {
-	return align_size;
-}
-
-size_t json_storage::size() const noexcept {
-	return buffer_size;
+	_type = new_type;
 }
 
 void json_storage::copy_data(const json_storage & other) {
 	switch (other._type) {
 	case value_type::_bool:
-		set<bool>(*other.get<bool>());
+		construct<bool>(other._storage.bool_data);
 		break;
 	case value_type::_int:
-		set<int>(*other.get<int>());
+		construct<int>(other._storage.int_data);
 		break;
 	case value_type::_uint:
-		set<unsigned int>(*other.get<unsigned int>());
+		construct<unsigned int>(other._storage.uint_data);
 		break;
 	case value_type::_double:
-		set<double>(*other.get<double>());
+		construct<double>(other._storage.double_data);
 		break;
 	case value_type::_string:
-		set<std::string>(*other.get<std::string>());
+		construct<std::string>(other._storage.str_data);
 		break;
 	case value_type::_array:
-		set<json_array>(*other.get<json_array>());
+		construct<json_array>(other._storage.array_data);
 		break;
 	case value_type::_object:
-		set<json_object>(*other.get<json_object>());
+		construct<json_object>(other._storage.object_data);
 		break;
 	}
+	_type = other._type;
 }
 
-void json_storage::move_data(json_storage && other) {
+void json_storage::move_data(json_storage && other) noexcept {
 	switch (other._type) {
 	case value_type::_bool:
-		set<bool>(std::move(*other.get<bool>()));
+		construct<bool>(other._storage.bool_data);
 		break;
 	case value_type::_int:
-		set<int>(std::move(*other.get<int>()));
+		construct<int>(other._storage.int_data);
 		break;
 	case value_type::_uint:
-		set<unsigned int>(std::move(*other.get<unsigned int>()));
+		construct<unsigned int>(other._storage.uint_data);
 		break;
 	case value_type::_double:
-		set<double>(std::move(*other.get<double>()));
+		construct<double>(other._storage.double_data);
 		break;
 	case value_type::_string:
-		set<std::string>(std::move(*other.get<std::string>()));
-		other.get<std::string>()->~basic_string();
+		construct<std::string>(std::move(other._storage.str_data));
 		break;
 	case value_type::_array:
-		set<json_array>(std::move(*other.get<json_array>()));
-		other.get<json_array>()->~vector();
+		set<json_array>(std::move(other._storage.array_data));
 		break;
 	case value_type::_object:
-		set<json_object>(std::move(*other.get<json_object>()));
-		other.get<json_object>()->~map();
+		set<json_object>(std::move(other._storage.object_data));
 		break;
 	}
+	_type = other._type;
 	other._type = value_type::_null;
 }
 
@@ -249,19 +248,19 @@ double json::core::impl::cast_to_double(const json_storage & data) {
 
 json_value_iterator::json_value_iterator() : _type(_iterator_type::_empty) {}
 
-json_value_iterator::json_value_iterator(array_iterator & arrit) : _type(_iterator_type::_array) {
+json_value_iterator::json_value_iterator(const array_iterator & arrit) : _type(_iterator_type::_array) {
 	_data.arr_it = arrit;
 }
 
-json_value_iterator::json_value_iterator(object_iterator & objit) : _type(_iterator_type::_object) {
+json_value_iterator::json_value_iterator(const object_iterator & objit) : _type(_iterator_type::_object) {
 	_data.object_iter = objit;
 }
 
-json_value_iterator::json_value_iterator(const_array_iterator & arrit) : _type(_iterator_type::c_array) {
+json_value_iterator::json_value_iterator(const const_array_iterator & arrit) : _type(_iterator_type::c_array) {
 	_data.const_arr_it = arrit;
 }
 
-json_value_iterator::json_value_iterator(const_object_iterator & objit) : _type(_iterator_type::c_object) {
+json_value_iterator::json_value_iterator(const const_object_iterator & objit) : _type(_iterator_type::c_object) {
 	_data.const_object_iter = objit;
 }
 
@@ -302,7 +301,7 @@ json_value_iterator & json_value_iterator::operator++() {
 	return *this;
 }
 
-json_value_iterator & json_value_iterator::operator++(int) {
+json_value_iterator json_value_iterator::operator++(int) {
 	json_value_iterator temp = *this;
 	++(*this);
 	return temp;
@@ -326,7 +325,7 @@ json_value_iterator & json_value_iterator::operator--() {
 	return *this;
 }
 
-json_value_iterator & json_value_iterator::operator--(int) {
+json_value_iterator json_value_iterator::operator--(int) {
 	json_value_iterator temp = *this;
 	--(*this);
 	return temp;
@@ -1013,6 +1012,10 @@ bool json::json_value::is_uint() const {
 
 bool json_value::is_double() const {
 	return _storage->type() == value_type::_double;
+}
+
+bool json::json_value::is_number() const {
+	return is_double() || is_int() || is_uint();
 }
 
 bool json_value::is_string() const {
