@@ -42,6 +42,21 @@ void json_schema_validator::validate_value(const json_value & scheme, const json
 	if (value.is_object()) {
 		validate_object(scheme, value);
 	}
+	if (scheme.contains("allOf")) {
+		allOf_handler(scheme["allOf"], value);
+	}
+	if (scheme.contains("anyOf")) {
+		anyOf_handler(scheme["anyOf"], value);
+	}
+	if (scheme.contains("oneOf")) {
+		oneOf_handler(scheme["oneOf"], value);
+	}
+	if (scheme.contains("not")) {
+		not_handler(scheme["not"], value);
+	}
+	if (scheme.contains("if")) {
+		if_handler(scheme, value);
+	}
 }
 
 void json_schema_validator::validate_type(const json_value & scheme, const json_value & value) {
@@ -427,6 +442,78 @@ void json::json_schema_validator::object_dependencies_handler(const json_value &
 			if (!sub_value.contains(sub_it->as_string())) {
 				add_error(validation_error_code::object_dependencies);
 			}
+		}
+	}
+}
+
+void json::json_schema_validator::allOf_handler(const json_value & all_of_scheme, const json_value & value) {
+	if (!all_of_scheme.is_array()) {
+		return;
+	}
+	const auto arr = all_of_scheme.as_array();
+	for (auto it : *arr) {
+		json_schema_validator sub_jsv(it);
+		if (!sub_jsv.validate(value)) {
+			add_error(validation_error_code::all_of_error);
+			break;
+		}
+	}
+}
+
+void json::json_schema_validator::anyOf_handler(const json_value & any_of_scheme, const json_value & value) {
+	if (!any_of_scheme.is_array()) {
+		add_error(validation_error_code::any_of_error);
+		return;
+	}
+	const auto arr = any_of_scheme.as_array();
+	for (auto it : *arr) {
+		json_schema_validator sub_jsv(it);
+		if (sub_jsv.validate(value)) {
+			return; // 1 схема подошла выходим
+		}
+	}
+	add_error(validation_error_code::any_of_error);
+}
+
+void json::json_schema_validator::oneOf_handler(const json_value & one_of_scheme, const json_value & value) {
+	if (!one_of_scheme.is_array()) {
+		add_error(validation_error_code::one_of_error);
+		return;
+	}
+	const auto arr = one_of_scheme.as_array();
+	size_t match = 0;
+	for (auto it : *arr) {
+		json_schema_validator sub_jsv(it);
+		if (sub_jsv.validate(value)) {
+			match++; 
+		}
+	}
+	if (match != 1) {
+		add_error(validation_error_code::one_of_error);
+	}
+}
+
+void json::json_schema_validator::not_handler(const json_value & not_scheme, const json_value & value) {
+	if (!not_scheme.is_object()) {
+		return;
+	}
+	json_schema_validator sub_jsv(not_scheme);
+	if (sub_jsv.validate(value)) {
+		add_error(validation_error_code::not_error);
+	}
+}
+
+void json::json_schema_validator::if_handler(const json_value & scheme, const json_value & value) {
+	json_schema_validator if_validator(scheme["if"]);
+	bool if_res = if_validator.validate(value);
+	if (if_res) {
+		if (scheme.contains("then")) {
+			validate_value(scheme["then"], value);
+		}
+	}
+	else {
+		if (scheme.contains("else")) {
+			validate_value(scheme["else"], value);
 		}
 	}
 }

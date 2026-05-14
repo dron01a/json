@@ -34,6 +34,10 @@ namespace json {
 		object_pattern_properties,
 		object_additional_properties,
 		object_dependencies,
+		all_of_error,
+		any_of_error,
+		one_of_error,
+		not_error,
 	};
 
 	// класс ошибки валидации 
@@ -117,6 +121,21 @@ namespace json {
 
 		// обработка поля схемы dependencies при валидации объекта 
 		void object_dependencies_handler(const json_value & field, json_object & obj);
+
+		// обработка ключегового слова allOf
+		void allOf_handler(const json_value & all_of_scheme, const json_value & value);
+
+		// обработка ключегового слова anyOf
+		void anyOf_handler(const json_value & any_of_scheme, const json_value & value);
+
+		// обработка ключегового слова oneOf
+		void oneOf_handler(const json_value & one_of_scheme, const json_value & value);
+
+		// обработка ключегового слова not
+		void not_handler(const json_value & not_scheme, const json_value & value);
+
+		// обработка валидация логических операций if
+		void if_handler(const json_value & scheme, const json_value & value);
 
 		// преобразует тип в строку 
 		std::string type_to_string(value_type type);
