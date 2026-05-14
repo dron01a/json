@@ -160,7 +160,6 @@ TEST_CASE(validate_array_additionalItems_fasle_test) {
 	TEST_ASSERT(!validator.validate(no_valid));
 }
 
-
 TEST_CASE(validate_array_additionalItems_true_test) {
 	auto schema = dom_parser::from_string("{\"type\" : \"array\", \"items\" : [{ \"type\" : \"number\" }, { \"type\" : \"number\" }], \"additionalItems\" : true }").json_val;
 	json_schema_validator validator(schema);
@@ -168,6 +167,17 @@ TEST_CASE(validate_array_additionalItems_true_test) {
 	auto also_valid = dom_parser::from_string("[ -45, 5, 5]").json_val;
 	TEST_ASSERT(validator.validate(valid));
 	TEST_ASSERT(validator.validate(also_valid));
+}
+
+TEST_CASE(validate_array_additionalItems_object_test) {
+	auto schema = dom_parser::from_string("{\"type\" : \"array\", \"items\" : [{ \"type\" : \"number\" }, { \"type\" : \"number\" }], \"additionalItems\" : { \"type\" : \"string\" } }").json_val;
+	json_schema_validator validator(schema);
+	auto valid = dom_parser::from_string("[1, 2, \"string\" ]").json_val;
+	auto also_valid = dom_parser::from_string("[ -45, 5]").json_val;
+	auto no_valid = dom_parser::from_string("[ -45, 5, 5]").json_val;
+	TEST_ASSERT(validator.validate(valid));
+	TEST_ASSERT(validator.validate(also_valid));
+	TEST_ASSERT(!validator.validate(no_valid));
 }
 
 TEST_CASE(validate_array_uniqueItems_fasle_test) {
@@ -178,7 +188,6 @@ TEST_CASE(validate_array_uniqueItems_fasle_test) {
 	TEST_ASSERT(validator.validate(valid));
 	TEST_ASSERT(validator.validate(also_valid));
 }
-
 
 TEST_CASE(validate_array_uniqueItems_true_test) {
 	auto schema = dom_parser::from_string("{\"type\" : \"array\", \"items\" : [{ \"type\" : \"number\" }, { \"type\" : \"number\" }], \"uniqueItems\" : true }").json_val;
@@ -277,6 +286,51 @@ TEST_CASE(validate_object_dependencies_test) {
 	json_schema_validator validator(schema);
 	auto valid = dom_parser::from_string("{ \"a\" : { \"b\" : 1, \"c\" : \"str\" } }").json_val;
 	auto no_valid = dom_parser::from_string("{ \"a\" : { \"c\" : \"str\" } }").json_val;
+	TEST_ASSERT(validator.validate(valid));
+	TEST_ASSERT(!validator.validate(no_valid));
+}
+
+TEST_CASE(allOf_test) {
+	auto schema = dom_parser::from_string("{ \"allOf\" : [  { \"type\" : \"number\" } , { \"multipleOf\" : 2 } ] }").json_val;
+	json_schema_validator validator(schema);
+	auto valid = dom_parser::from_string(" 4 ").json_val;
+	auto no_valid = dom_parser::from_string(" 3 ").json_val;
+	TEST_ASSERT(validator.validate(valid));
+	TEST_ASSERT(!validator.validate(no_valid));
+}
+
+TEST_CASE(anyOf_test) {
+	auto schema = dom_parser::from_string("{ \"anyOf\" : [  { \"type\" : \"number\" } , { \"multipleOf\" : 2 } ] }").json_val;
+	json_schema_validator validator(schema);
+	auto valid = dom_parser::from_string(" 4 ").json_val;
+	auto also_valid = dom_parser::from_string(" 3 ").json_val;
+	TEST_ASSERT(validator.validate(valid));
+	TEST_ASSERT(validator.validate(also_valid));
+}
+
+TEST_CASE(oneOf_test) {
+	auto schema = dom_parser::from_string("{ \"oneOf\" : [  { \"type\" : \"number\" } , { \"multipleOf\" : 2 } ] }").json_val;
+	json_schema_validator validator(schema);
+	auto valid = dom_parser::from_string(" 3 ").json_val;
+	auto no_valid = dom_parser::from_string(" 4 ").json_val;
+	TEST_ASSERT(validator.validate(valid));
+	TEST_ASSERT(!validator.validate(no_valid));
+}
+
+TEST_CASE(not_test) {
+	auto schema = dom_parser::from_string("{ \"not\" :  { \"type\" : \"number\" } }").json_val;
+	json_schema_validator validator(schema);
+	auto valid = dom_parser::from_string(" \"string\" ").json_val;
+	auto no_valid = dom_parser::from_string(" 3 ").json_val;
+	TEST_ASSERT(validator.validate(valid));
+	TEST_ASSERT(!validator.validate(no_valid));
+}
+
+TEST_CASE(if_test) {
+	auto schema = dom_parser::from_string("{ \"if\" :  { \"type\" : \"number\" }, \"then\" : { \"multipleOf\" : 2 }  }").json_val;
+	json_schema_validator validator(schema);
+	auto valid = dom_parser::from_string(" 4 ").json_val;
+	auto no_valid = dom_parser::from_string(" 3 ").json_val;
 	TEST_ASSERT(validator.validate(valid));
 	TEST_ASSERT(!validator.validate(no_valid));
 }
