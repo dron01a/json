@@ -1,4 +1,5 @@
 #include "core\json_value.h"
+#include <cstring>
 
 using namespace json;
 using namespace json::core::impl;
@@ -847,12 +848,24 @@ json_pointer_array json_value::select(const char * key){
 	return result;
 }
 
-bool json::json_value::contains(const std::string & key) const {
-	return find(key) != nullptr;
+bool json::json_value::contains(const std::string & key, bool deep_mode) const {
+	if (deep_mode) {
+		return find(key) != nullptr;
+	}
+	if (is_object()) {
+		return as_object()->count(key) != 0;
+	}
+	return false;
 }
 
-bool json::json_value::contains(const char * key) const { 
-	return find(key) != nullptr;
+bool json::json_value::contains(const char * key, bool deep_mode) const {
+	if (deep_mode) {
+		return find(key) != nullptr;
+	}
+	if (is_object()) {
+		return as_object()->count(key) != 0;
+	}
+	return false;
 }
 
 jv_pointer json_value::add(const json_value & val) {

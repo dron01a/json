@@ -118,8 +118,8 @@ TEST_CASE(test_object) {
 TEST_CASE(test_number) {
 	json_storage _storage1, _storage2, _storage3;
 	_storage1.set<int>(2);
-	_storage2.set<double>(2);
-	_storage3.set<unsigned int>(2);
+	_storage2.set<double>(2.0);
+	_storage3.set<unsigned int>((unsigned int)2);
 	TEST_ASSERT(_storage1 == _storage2);
 	TEST_ASSERT(_storage2 == _storage3);
 	TEST_ASSERT(_storage1 == _storage3);
